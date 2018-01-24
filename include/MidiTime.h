@@ -32,8 +32,12 @@
 #include "export.h"
 #include "lmms_basics.h"
 
+
 // note: 1 "Tact" = 1 Measure
-const int DefaultTicksPerTact = 192;
+const int DefaultTicksPerTact = 3840;       // =960 PPQN  
+//    int DefaultTicksPerTact = 192;        // Old DefaultTicksPerTact is 192.
+const int TicsPerTactOldRatio = 3840 / 192; // =20. This means 20 times larger PPQN 
+                                            //      than version 1.2.0
 const int DefaultStepsPerTact = 16;
 const int DefaultBeatsPerTact = DefaultTicksPerTact / DefaultStepsPerTact;
 
