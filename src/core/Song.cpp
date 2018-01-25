@@ -63,13 +63,15 @@
 
 tick_t MidiTime::s_ticksPerTact = DefaultTicksPerTact;
 
-
+const int UndefinedTicksPerTact = 0;
+const int OldDefaultTicksPerTact = 192;
 
 Song::Song() :
 	TrackContainer(),
 	m_globalAutomationTrack( dynamic_cast<AutomationTrack *>(
 				Track::create( Track::HiddenAutomationTrack,
 								this ) ) ),
+	m_ticksPerTact( UndefinedTicksPerTact, 0, 50000, this, tr( "Pulse Per Quater Note" ) ),
 	m_tempoModel( DefaultTempo, MinTempo, MaxTempo, this, tr( "Tempo" ) ),
 	m_timeSigModel( this ),
 	m_oldTicksPerTact( DefaultTicksPerTact ),
@@ -135,6 +137,9 @@ void Song::masterVolumeChanged()
 
 
 
+void Song::setTicksPerTact()
+{
+}
 
 void Song::setTempo()
 {
@@ -800,6 +805,11 @@ void Song::addAutomationTrack()
 
 
 
+int Song::getTicksPerTact()
+{
+	return ( int )m_ticksPerTact.value();
+}
+
 bpm_t Song::getTempo()
 {
 	return ( bpm_t )m_tempoModel.value();
@@ -867,6 +877,7 @@ void Song::clearProject()
 		gui->pianoRoll()->reset();
 	}
 
+	m_ticksPerTact.reset();
 	m_tempoModel.reset();
 	m_masterVolumeModel.reset();
 	m_masterPitchModel.reset();
@@ -941,6 +952,7 @@ void Song::createNewProject()
 	Track::create( Track::BBTrack, this );
 	Track::create( Track::AutomationTrack, this );
 
+	m_ticksPerTact.setInitValue( UndefinedTicksPerTact );
 	m_tempoModel.setInitValue( DefaultTempo );
 	m_timeSigModel.reset();
 	m_masterVolumeModel.setInitValue( 100 );
@@ -963,6 +975,9 @@ void Song::createNewProject()
 	{
 		gui->mainWindow()->resetWindowTitle();
 	}
+
+	printf ("CREATE m_ticksPerTact.value(): %d\n", m_ticksPerTact.value() );
+	printf ("CREATE m_ticksPerTact.isDefaultConstructed(): %s\n", m_ticksPerTact.isDefaultConstructed() ? "true" : "false" );
 }
 
 
@@ -971,6 +986,7 @@ void Song::createNewProject()
 void Song::createNewProjectFromTemplate( const QString & templ )
 {
 	loadProject( templ );
+
 	// clear file-name so that user doesn't overwrite template when
 	// saving...
 	m_fileName = m_oldFileName = "";
@@ -1021,10 +1037,90 @@ void Song::loadProject( const QString & fileName )
 	Engine::mixer()->requestChangeInModel();
 
 	// get the header information from the DOM
+	
+	// loading ppqn from DOM
+	/* 
+	 *   FIXME , please.
+	 *
+	 *   This is a quick dirty solution for setting default value.
+	 *
+	 *   WHat I wanted to do is :
+	 *
+	 *   > If the project file does not have ppqn value, that means 
+	 *   > the project file is made by LMMS v1.2.0 or lower so 
+	 *   > default it to 192 TicksPerTact to keep lower compatibility.
+	 *   >
+	 *   > Otherwise the project file is made by newer LMMS which means
+	 *   > the project file should have ppqn value.
+	 *
+	 *   This should be done by LMMS's serialization system but I don't know
+	 *   how.
+	 */
+
+	// FIXME 
+	// If the file is the default template, regard it 3840 TicksPerTact.
+	// Actually the default template should be updated.
+	m_ticksPerTact.loadSettings( dataFile.head(), "ppqn" );
+	if ( fileName == "data:/projects/templates/default.mpt" ) {
+		printf ("LOAD0 DETECT TEMPLATE %d\n", m_ticksPerTact.value() );
+		m_ticksPerTact.setValue( DefaultTicksPerTact );
+	} else {
+		// If the project file does not have ppqn value, default it to 192.
+		if ( m_ticksPerTact.value() == UndefinedTicksPerTact ) {
+			m_ticksPerTact.setValue( OldDefaultTicksPerTact );
+		}
+	}
+
+	printf ("LOAD m_ticksPerTact.value(): %d\n", m_ticksPerTact.value() );
+	printf ("LOAD m_ticksPerTact.isDefaultConstructed(): %s\n", m_ticksPerTact.isDefaultConstructed() ? "true" : "false" );
+
 	m_tempoModel.loadSettings( dataFile.head(), "bpm" );
 	m_timeSigModel.loadSettings( dataFile.head(), "timesig" );
 	m_masterVolumeModel.loadSettings( dataFile.head(), "mastervol" );
 	m_masterPitchModel.loadSettings( dataFile.head(), "masterpitch" );
+
+	// Modifying the opened document before parse it.
+	if ( /* ppqn == 192 */ true ) {
+		{
+			QDomNodeList nodelist=dataFile.content().elementsByTagName("note");
+			printf( "NOTE QDomNodeList : %d\n", nodelist.count() );
+			for( int i=0,n=nodelist.count(); i<n; ++i ) {
+				QDomElement nd = nodelist.at(i).toElement();
+				printf( "nodeType: %d\n" , nd.nodeType() );
+				qDebug() << "node value:" << nd.attributeNode( "key" ).value() << "\n";
+				{
+					QDomAttr an = nd.attributeNode( "pos" );
+					int n = an.value().toInt() * 20;
+					an.setValue( QString::number( n ) );
+				}
+				{
+					QDomAttr an = nd.attributeNode( "len" );
+					int n = an.value().toInt() * 20;
+					an.setValue( QString::number( n ) );
+				}
+			}
+		}
+		{
+			QDomNodeList nodelist=dataFile.content().elementsByTagName( "pattern" );
+			printf( "PATTERN QDomNodeList : %d\n", nodelist.count() );
+			for( int i=0,n=nodelist.count(); i<n; ++i ) {
+				QDomElement nd = nodelist.at(i).toElement();
+				printf( "nodeType: %d\n" , nd.nodeType() );
+				qDebug() << "node value:" << nd.attributeNode( "key" ).value() << "\n";
+				{
+					QDomAttr an = nd.attributeNode( "steps" );
+					int n = an.value().toInt() * 20;
+					an.setValue( QString::number( n ) );
+				}
+				{
+					QDomAttr an = nd.attributeNode( "pos" );
+					int n = an.value().toInt() * 20;
+					an.setValue( QString::number( n ) );
+				}
+			}
+		}
+	}
+
 
 	if( m_playPos[Mode_PlaySong].m_timeLine )
 	{
@@ -1052,6 +1148,8 @@ void Song::loadProject( const QString & fileName )
 			gui->fxMixerView()->refreshDisplay();
 		}
 	}
+
+
 
 	node = dataFile.content().firstChild();
 
@@ -1081,6 +1179,7 @@ void Song::loadProject( const QString & fileName )
 		{
 			if( node.nodeName() == "trackcontainer" )
 			{
+				printf( "trackcontaine\n" );
 				( (JournallingObject *)( this ) )->restoreState( node.toElement() );
 			}
 			else if( node.nodeName() == "controllers" )
@@ -1172,6 +1271,7 @@ bool Song::saveProjectFile( const QString & filename )
 
 	DataFile dataFile( DataFile::SongProject );
 
+	m_ticksPerTact.saveSettings( dataFile, dataFile.head(), "ppqn" );
 	m_tempoModel.saveSettings( dataFile, dataFile.head(), "bpm" );
 	m_timeSigModel.saveSettings( dataFile, dataFile.head(), "timesig" );
 	m_masterVolumeModel.saveSettings( dataFile, dataFile.head(), "mastervol" );
