@@ -999,6 +999,122 @@ void Song::createNewProjectFromTemplate( const QString & templ )
 }
 
 
+void correctNode192to3840( DataFile& dataFile, const char* tagName ) {
+	QDomNodeList nodelist=dataFile.content().elementsByTagName( tagName );
+	printf( "%s QDomNodeList : %d\n", tagName, nodelist.count() );
+	for( int i=0,n=nodelist.count(); i<n; ++i ) {
+		QDomElement nd = nodelist.at(i).toElement();
+		// printf( "nodeType: %d\n" , nd.nodeType() );
+		// qDebug() << "node value:" << nd.attributeNode( "key" ).value() << "\n";
+		{
+			QDomAttr an = nd.attributeNode( "pos" );
+			int n = an.value().toInt() * 20;
+			an.setValue( QString::number( n ) );
+		}
+		{
+			QDomAttr an = nd.attributeNode( "len" );
+			int n = an.value().toInt() * 20;
+			an.setValue( QString::number( n ) );
+		}
+	}
+}
+
+void correct192to3840( DataFile dataFile ) {
+	correctNode192to3840( dataFile, "note" );
+	correctNode192to3840( dataFile, "bbtco" );
+	correctNode192to3840( dataFile, "sampletco" );
+	correctNode192to3840( dataFile, "automationpattern" );
+	correctNode192to3840( dataFile, "pattern" );
+	correctNode192to3840( dataFile, "time" );
+
+	// {
+	// 	QDomNodeList nodelist=dataFile.content().elementsByTagName("bbtco");
+	// 	printf( "BBTCO QDomNodeList : %d\n", nodelist.count() );
+	// 	for( int i=0,n=nodelist.count(); i<n; ++i ) {
+	// 		QDomElement nd = nodelist.at(i).toElement();
+	// 		// printf( "nodeType: %d\n" , nd.nodeType() );
+	// 		{
+	// 			QDomAttr an = nd.attributeNode( "pos" );
+	// 			int n = an.value().toInt() * 20;
+	// 			an.setValue( QString::number( n ) );
+	// 		}
+	// 		{
+	// 			QDomAttr an = nd.attributeNode( "len" );
+	// 			int n = an.value().toInt() * 20;
+	// 			an.setValue( QString::number( n ) );
+	// 		}
+	// 	}
+	// }
+	// {
+	// 	QDomNodeList nodelist=dataFile.content().elementsByTagName("sampletco");
+	// 	printf( "SAMPLETCO QDomNodeList : %d\n", nodelist.count() );
+	// 	for( int i=0,n=nodelist.count(); i<n; ++i ) {
+	// 		QDomElement nd = nodelist.at(i).toElement();
+	// 		// printf( "nodeType: %d\n" , nd.nodeType() );
+	// 		{
+	// 			QDomAttr an = nd.attributeNode( "pos" );
+	// 			int n = an.value().toInt() * 20;
+	// 			an.setValue( QString::number( n ) );
+	// 		}
+	// 		{
+	// 			QDomAttr an = nd.attributeNode( "len" );
+	// 			int n = an.value().toInt() * 20;
+	// 			an.setValue( QString::number( n ) );
+	// 		}
+	// 	}
+	// }
+	// {
+	// 	QDomNodeList nodelist=dataFile.content().elementsByTagName("automationpattern");
+	// 	printf( "BBTA QDomNodeList : %d\n", nodelist.count() );
+	// 	for( int i=0,n=nodelist.count(); i<n; ++i ) {
+	// 		QDomElement nd = nodelist.at(i).toElement();
+	// 		// printf( "nodeType: %d\n" , nd.nodeType() );
+	// 		{
+	// 			QDomAttr an = nd.attributeNode( "pos" );
+	// 			int n = an.value().toInt() * 20;
+	// 			an.setValue( QString::number( n ) );
+	// 		}
+	// 		{
+	// 			QDomAttr an = nd.attributeNode( "len" );
+	// 			int n = an.value().toInt() * 20;
+	// 			an.setValue( QString::number( n ) );
+	// 		}
+	// 	}
+	// }
+	// {
+	// 	QDomNodeList nodelist=dataFile.content().elementsByTagName( "pattern" );
+	// 	// printf( "PATTERN QDomNodeList : %d\n", nodelist.count() );
+	// 	for( int i=0,n=nodelist.count(); i<n; ++i ) {
+	// 		QDomElement nd = nodelist.at(i).toElement();
+	// 		// printf( "nodeType: %d\n" , nd.nodeType() );
+	// 		// qDebug() << "node value:" << nd.attributeNode( "key" ).value() << "\n";
+	// 		// {
+	// 		// 	QDomAttr an = nd.attributeNode( "steps" );
+	// 		// 	int n = an.value().toInt() * 20;
+	// 		// 	an.setValue( QString::number( n ) );
+	// 		// }
+	// 		{
+	// 			QDomAttr an = nd.attributeNode( "pos" );
+	// 			int n = an.value().toInt() * 20;
+	// 			an.setValue( QString::number( n ) );
+	// 		}
+	// 	}
+	// }
+	// {
+	// 	QDomNodeList nodelist=dataFile.content().elementsByTagName( "time" );
+	// 	printf( "TIME QDomNodeList : %d\n", nodelist.count() );
+	// 	for( int i=0,n=nodelist.count(); i<n; ++i ) {
+	// 		QDomElement nd = nodelist.at(i).toElement();
+	// 		// printf( "nodeType: %d\n" , nd.nodeType() );
+	// 		// qDebug() << "node value:" << nd.attributeNode( "key" ).value() << "\n";
+	// 		{
+	// 			QDomAttr an = nd.attributeNode( "pos" );
+	// 			int n = an.value().toInt() * 20;
+	// 			an.setValue( QString::number( n ) );
+	// 		}
+	// 	}
+	// }
+}
 
 
 // load given song
@@ -1081,44 +1197,7 @@ void Song::loadProject( const QString & fileName )
 
 	// Modifying the opened document before parse it.
 	if ( /* ppqn == 192 */ true ) {
-		{
-			QDomNodeList nodelist=dataFile.content().elementsByTagName("note");
-			printf( "NOTE QDomNodeList : %d\n", nodelist.count() );
-			for( int i=0,n=nodelist.count(); i<n; ++i ) {
-				QDomElement nd = nodelist.at(i).toElement();
-				printf( "nodeType: %d\n" , nd.nodeType() );
-				qDebug() << "node value:" << nd.attributeNode( "key" ).value() << "\n";
-				{
-					QDomAttr an = nd.attributeNode( "pos" );
-					int n = an.value().toInt() * 20;
-					an.setValue( QString::number( n ) );
-				}
-				{
-					QDomAttr an = nd.attributeNode( "len" );
-					int n = an.value().toInt() * 20;
-					an.setValue( QString::number( n ) );
-				}
-			}
-		}
-		{
-			QDomNodeList nodelist=dataFile.content().elementsByTagName( "pattern" );
-			printf( "PATTERN QDomNodeList : %d\n", nodelist.count() );
-			for( int i=0,n=nodelist.count(); i<n; ++i ) {
-				QDomElement nd = nodelist.at(i).toElement();
-				printf( "nodeType: %d\n" , nd.nodeType() );
-				qDebug() << "node value:" << nd.attributeNode( "key" ).value() << "\n";
-				{
-					QDomAttr an = nd.attributeNode( "steps" );
-					int n = an.value().toInt() * 20;
-					an.setValue( QString::number( n ) );
-				}
-				{
-					QDomAttr an = nd.attributeNode( "pos" );
-					int n = an.value().toInt() * 20;
-					an.setValue( QString::number( n ) );
-				}
-			}
-		}
+		correct192to3840( dataFile );
 	}
 
 
