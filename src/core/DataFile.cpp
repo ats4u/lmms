@@ -1072,106 +1072,112 @@ void DataFile::upgrade()
 	}
 }
 
-void correctAttr(  QDomElement& nd, const char* attrName, const int _ratio ) {
-	QDomAttr attr = nd.attributeNode( attrName );
-	int n = attr.value().toInt() * _ratio;
-	attr.setValue( QString::number( n ) );
-}
 
-void correctNode( DataFile& dataFile, const int _ratio, const char* tagName ) {
-	QDomNodeList nodelist=dataFile.elementsByTagName( tagName );
-	// printf( "%s QDomNodeList : %d\n", tagName, nodelist.count() );
-	for( int i=0,n=nodelist.count(); i<n; ++i ) {
-		QDomElement nd = nodelist.at(i).toElement();
-		correctAttr( nd, "pos", _ratio );
-		correctAttr( nd, "len", _ratio );
-		// printf( "nodeType: %d\n" , nd.nodeType() );
-		// qDebug() << "node value:" << nd.attributeNode( "key" ).value() << "\n";
-		// {
-		// 	QDomAttr an = nd.attributeNode( "pos" );
-		// 	int n = an.value().toInt() * _ratio;
-		// 	an.setValue( QString::number( n ) );
-		// }
-		// {
-		// 	QDomAttr an = nd.attributeNode( "len" );
-		// 	int n = an.value().toInt() * _ratio;
-		// 	an.setValue( QString::number( n ) );
-		// }
+void upgrade_ppqn( DataFile& dataFile ) {
+	// "data:/projects/templates/default.mpt"
+	// printf( "BPM TAG: %d\n" , m_head.elementsByTagName( "bpm").length() );
+	// QTextStream ss(stdout);
+	// ss << m_head << "\n";
+	// ss << "BPM COUNT: " << m_head.elementsByTagName( "bpm").length() << "\n";
+	// ss << "BPM ATTR:  " << m_head.hasAttribute( "bpm" ) << "\n";
+	// ss << "PPQN: " << m_head.hasAttribute( "ppqn" ) << "\n";
+
+	QDomElement&  m_head = dataFile.head();
+
+	bool doCorrection;
+	int itsPPQN;
+	IntModel i( DefaultPPQN, 0, 50000, 0 , SongEditor::tr( "Pulse Per Quater Note" ) );
+
+	if ( m_head.hasAttribute( "ppqn" ) ) {
+		// ** PPQN value was found **
+		// If there is ppqn value in the project file, it is currently able to
+		// assume that it is 960.  But if any value other than 48 or 960
+		// appears in a project file in future, it probably becomes a problem.
+		// Try to correct it here.
+
+		i.loadSettings( dataFile.head(), "ppqn" );
+		itsPPQN = i.value();
+
+		printf ("PPQN WAS FOUND: Its PPQN value is %d\n", itsPPQN );
+
+		if ( itsPPQN == DefaultPPQN ) {
+			doCorrection = false;
+		} else {
+			doCorrection = true;
+		}
+	} else {
+		// Otherwise it is supposed to be a project file <= 1.2.0.
+		// It is supposed to be 48 ppqn. See MidiTime.h
+		printf ("PPQN WAS NOT FOUND\n" );
+		itsPPQN = DefaultPPQN_old;
+		doCorrection = true;
 	}
-}
 
-// void aaa( const char* a[], int count ){
-// 	for ( int i=0; i<count; i++ ) {
-// 		printf( "HELLO : %s\n", a[i] );
-// 	}
-// }
-// 
-// void aaaa( const std::vector<std::string> & a ){
-// 	for ( int i=0,len=a.size(); i<len; i++ ) {
-// 		printf( "HELLO : %s\n", a[i].c_str() );
-// 	}
-// }
-// 
-// int test() {
-// 	const char* ids[] = { "HELLO", "WORLD" };
-// 	aaa( ids, 2 );
-// 	aaaa( { "HELLO", "WORLD" } );
-// }
+	// Correct ppqn value.
+	if ( doCorrection ) {
+		printf( "PPQN correction\n" );
+		// In most case, this ratio is 960 / 48 = 20
+		i.setValue( DefaultPPQN );
+		i.saveSettings( dataFile, dataFile.head(), "ppqn" );
+		printf ("new PPQN WAS written %d\n", i.value() );
 
+		class Correct_PPQN {
+			const DataFile& dataFile;
+			const int ratio;
+			const char* tagName;
+			const std::list<std::string> attrs;
 
-
-void upgrade_ppqn( const DataFile& dataFile, const int ratio ) {
-	class Correct_PPQN {
-		const DataFile& dataFile;
-		const int ratio;
-		const char* tagName;
-		const std::list<std::string> attrs;
-
-		public:
-		Correct_PPQN(
-			const DataFile& dataFile,
-			const int ratio,
-			const char* tagName,
-			const std::list<std::string> & attrs 
-		) : dataFile( dataFile ),
-			ratio( ratio ),
-			tagName( tagName ),
-			attrs( attrs ) 
-		{
-			proc( dataFile,ratio,tagName,attrs );
-		}
-		~Correct_PPQN() {
-		}
-		void proc(
-			const DataFile& dataFile,
-			const int ratio,
-			const char* tagName,
-			const std::list<std::string> & attrs 
-		) {
-			QDomNodeList nodelist=dataFile.elementsByTagName( tagName );
-			// printf( "%s QDomNodeList : %d\n", tagName, nodelist.count() );
-			for( int i=0,n=nodelist.count(); i<n; ++i ) {
-				QDomElement nd = nodelist.at(i).toElement();
-				for ( std::list<std::string>::const_iterator it = attrs.begin(); it != attrs.end(); ++it ) {
-					correctAttr( nd, it->c_str(), ratio );
+			public:
+			Correct_PPQN(
+				const DataFile& dataFile,
+				const int ratio,
+				const char* tagName,
+				const std::list<std::string> & attrs 
+			) : dataFile( dataFile ),
+				ratio( ratio ),
+				tagName( tagName ),
+				attrs( attrs ) 
+			{
+				printf ("Correcting PPQN %s ...\n", tagName );
+				proc();
+			}
+			~Correct_PPQN()
+			{
+			}
+			void proc()
+			{
+				QDomNodeList nodelist=dataFile.elementsByTagName( tagName );
+				for( int i=0,n=nodelist.count(); i<n; ++i ) {
+					QDomElement e = nodelist.at(i).toElement();
+					for ( std::list<std::string>::const_iterator it = attrs.begin(); it != attrs.end(); ++it ) {
+						correctAttr( e, it->c_str(), ratio );
+					}
 				}
 			}
-		}
+			inline void correctAttr( QDomElement& e, const char* attrName, const int ratio )
+			{
+				// int n = e.attribute( attrName ).toInt() * ratio;
+				// e.setAttribute( attrName, QString::number( n ) );
 
-		inline void correctAttr( QDomElement& nd, const char* attrName, const int _ratio ) {
-			QDomAttr attr = nd.attributeNode( attrName );
-			int n = attr.value().toInt() * _ratio;
-			attr.setValue( QString::number( n ) );
-		}
-	};
-	// test();
-	Correct_PPQN( dataFile, ratio,  "note"             , { "pos", "len" } );
-	Correct_PPQN( dataFile, ratio,  "bbtco"            , { "pos", "len" } );
-	Correct_PPQN( dataFile, ratio,  "sampletco"        , { "pos", "len" } );
-	Correct_PPQN( dataFile, ratio,  "automationpattern", { "pos", "len" } );
-	Correct_PPQN( dataFile, ratio,  "pattern"          , { "pos", "len" } );
-	Correct_PPQN( dataFile, ratio,  "time"             , { "pos", "len" } );
-	Correct_PPQN( dataFile, ratio,  "timeline"         , { "lp0pos", "lp1pos" } );
+				QDomAttr attr = e.attributeNode( attrName );
+				int n = attr.value().toInt() * ratio;
+				attr.setValue( QString::number( n ) );
+			}
+		};
+
+		printf ("Start correction PPQN\n" );
+		int ratio = DefaultPPQN / itsPPQN;
+		Correct_PPQN( dataFile, ratio,  "bbtco"            , { "pos", "len" } );
+		Correct_PPQN( dataFile, ratio,  "sampletco"        , { "pos", "len" } );
+		Correct_PPQN( dataFile, ratio,  "automationpattern", { "pos", "len" } );
+		Correct_PPQN( dataFile, ratio,  "pattern"          , { "pos", "len" } );
+		Correct_PPQN( dataFile, ratio,  "time"             , { "pos", "len" } );
+		Correct_PPQN( dataFile, ratio,  "timeline"         , { "lp0pos", "lp1pos" } );
+		Correct_PPQN( dataFile, ratio,  "note"             , { "pos", "len" } );
+		printf ("Finished correction PPQN\n" );
+	} else {
+		printf( "PPQN correction is not necessary\n" );
+	}
 }
 
 
@@ -1253,29 +1259,7 @@ void DataFile::loadData( const QByteArray & _data, const QString & _sourceFile )
 		}
 	}
 
-
-	// "data:/projects/templates/default.mpt"
-	{
-
-		// printf( "BPM TAG: %d\n" , m_head.elementsByTagName( "bpm").length() );
-		// QTextStream ss(stdout);
-		// ss << m_head << "\n";
-		// ss << "BPM COUNT: " << m_head.elementsByTagName( "bpm").length() << "\n";
-		// ss << "BPM ATTR:  " << m_head.hasAttribute( "bpm" ) << "\n";
-		// ss << "PPQN: " << m_head.hasAttribute( "ppqn" ) << "\n";
-
-		if ( ! m_head.hasAttribute( "ppqn" ) ) {
-			printf ("NO PPQN WAS FOUND\n" );
-			IntModel i( 3840, 0, 50000, 0 , SongEditor::tr( "Pulse Per Quater Note" ) );
-			i.saveSettings( *this, this->head(), "ppqn" );
-
-			// Correct ppqn value 192 to 3840
-			upgrade_ppqn( *this, 20 );
-		} else {
-			printf ("PPQN WAS FOUND\n" );
-		}
-	}
-
+	upgrade_ppqn( *this );
 
 	m_content = root.elementsByTagName( typeName( m_type ) ).
 							item( 0 ).toElement();
