@@ -999,123 +999,6 @@ void Song::createNewProjectFromTemplate( const QString & templ )
 }
 
 
-void correctNode192to3840( DataFile& dataFile, const char* tagName ) {
-	QDomNodeList nodelist=dataFile.content().elementsByTagName( tagName );
-	printf( "%s QDomNodeList : %d\n", tagName, nodelist.count() );
-	for( int i=0,n=nodelist.count(); i<n; ++i ) {
-		QDomElement nd = nodelist.at(i).toElement();
-		// printf( "nodeType: %d\n" , nd.nodeType() );
-		// qDebug() << "node value:" << nd.attributeNode( "key" ).value() << "\n";
-		{
-			QDomAttr an = nd.attributeNode( "pos" );
-			int n = an.value().toInt() * 20;
-			an.setValue( QString::number( n ) );
-		}
-		{
-			QDomAttr an = nd.attributeNode( "len" );
-			int n = an.value().toInt() * 20;
-			an.setValue( QString::number( n ) );
-		}
-	}
-}
-
-void correct192to3840( DataFile dataFile ) {
-	correctNode192to3840( dataFile, "note" );
-	correctNode192to3840( dataFile, "bbtco" );
-	correctNode192to3840( dataFile, "sampletco" );
-	correctNode192to3840( dataFile, "automationpattern" );
-	correctNode192to3840( dataFile, "pattern" );
-	correctNode192to3840( dataFile, "time" );
-
-	// {
-	// 	QDomNodeList nodelist=dataFile.content().elementsByTagName("bbtco");
-	// 	printf( "BBTCO QDomNodeList : %d\n", nodelist.count() );
-	// 	for( int i=0,n=nodelist.count(); i<n; ++i ) {
-	// 		QDomElement nd = nodelist.at(i).toElement();
-	// 		// printf( "nodeType: %d\n" , nd.nodeType() );
-	// 		{
-	// 			QDomAttr an = nd.attributeNode( "pos" );
-	// 			int n = an.value().toInt() * 20;
-	// 			an.setValue( QString::number( n ) );
-	// 		}
-	// 		{
-	// 			QDomAttr an = nd.attributeNode( "len" );
-	// 			int n = an.value().toInt() * 20;
-	// 			an.setValue( QString::number( n ) );
-	// 		}
-	// 	}
-	// }
-	// {
-	// 	QDomNodeList nodelist=dataFile.content().elementsByTagName("sampletco");
-	// 	printf( "SAMPLETCO QDomNodeList : %d\n", nodelist.count() );
-	// 	for( int i=0,n=nodelist.count(); i<n; ++i ) {
-	// 		QDomElement nd = nodelist.at(i).toElement();
-	// 		// printf( "nodeType: %d\n" , nd.nodeType() );
-	// 		{
-	// 			QDomAttr an = nd.attributeNode( "pos" );
-	// 			int n = an.value().toInt() * 20;
-	// 			an.setValue( QString::number( n ) );
-	// 		}
-	// 		{
-	// 			QDomAttr an = nd.attributeNode( "len" );
-	// 			int n = an.value().toInt() * 20;
-	// 			an.setValue( QString::number( n ) );
-	// 		}
-	// 	}
-	// }
-	// {
-	// 	QDomNodeList nodelist=dataFile.content().elementsByTagName("automationpattern");
-	// 	printf( "BBTA QDomNodeList : %d\n", nodelist.count() );
-	// 	for( int i=0,n=nodelist.count(); i<n; ++i ) {
-	// 		QDomElement nd = nodelist.at(i).toElement();
-	// 		// printf( "nodeType: %d\n" , nd.nodeType() );
-	// 		{
-	// 			QDomAttr an = nd.attributeNode( "pos" );
-	// 			int n = an.value().toInt() * 20;
-	// 			an.setValue( QString::number( n ) );
-	// 		}
-	// 		{
-	// 			QDomAttr an = nd.attributeNode( "len" );
-	// 			int n = an.value().toInt() * 20;
-	// 			an.setValue( QString::number( n ) );
-	// 		}
-	// 	}
-	// }
-	// {
-	// 	QDomNodeList nodelist=dataFile.content().elementsByTagName( "pattern" );
-	// 	// printf( "PATTERN QDomNodeList : %d\n", nodelist.count() );
-	// 	for( int i=0,n=nodelist.count(); i<n; ++i ) {
-	// 		QDomElement nd = nodelist.at(i).toElement();
-	// 		// printf( "nodeType: %d\n" , nd.nodeType() );
-	// 		// qDebug() << "node value:" << nd.attributeNode( "key" ).value() << "\n";
-	// 		// {
-	// 		// 	QDomAttr an = nd.attributeNode( "steps" );
-	// 		// 	int n = an.value().toInt() * 20;
-	// 		// 	an.setValue( QString::number( n ) );
-	// 		// }
-	// 		{
-	// 			QDomAttr an = nd.attributeNode( "pos" );
-	// 			int n = an.value().toInt() * 20;
-	// 			an.setValue( QString::number( n ) );
-	// 		}
-	// 	}
-	// }
-	// {
-	// 	QDomNodeList nodelist=dataFile.content().elementsByTagName( "time" );
-	// 	printf( "TIME QDomNodeList : %d\n", nodelist.count() );
-	// 	for( int i=0,n=nodelist.count(); i<n; ++i ) {
-	// 		QDomElement nd = nodelist.at(i).toElement();
-	// 		// printf( "nodeType: %d\n" , nd.nodeType() );
-	// 		// qDebug() << "node value:" << nd.attributeNode( "key" ).value() << "\n";
-	// 		{
-	// 			QDomAttr an = nd.attributeNode( "pos" );
-	// 			int n = an.value().toInt() * 20;
-	// 			an.setValue( QString::number( n ) );
-	// 		}
-	// 	}
-	// }
-}
-
 
 // load given song
 void Song::loadProject( const QString & fileName )
@@ -1155,50 +1038,45 @@ void Song::loadProject( const QString & fileName )
 	// get the header information from the DOM
 	
 	// loading ppqn from DOM
-	/* 
-	 *   FIXME , please.
-	 *
-	 *   This is a quick dirty solution for setting default value.
-	 *
-	 *   WHat I wanted to do is :
-	 *
-	 *   > If the project file does not have ppqn value, that means 
-	 *   > the project file is made by LMMS v1.2.0 or lower so 
-	 *   > default it to 192 TicksPerTact to keep lower compatibility.
-	 *   >
-	 *   > Otherwise the project file is made by newer LMMS which means
-	 *   > the project file should have ppqn value.
-	 *
-	 *   This should be done by LMMS's serialization system but I don't know
-	 *   how.
-	 */
-
-	// FIXME 
-	// If the file is the default template, regard it 3840 TicksPerTact.
-	// Actually the default template should be updated.
 	m_ticksPerTact.loadSettings( dataFile.head(), "ppqn" );
-	if ( fileName == "data:/projects/templates/default.mpt" ) {
-		printf ("LOAD0 DETECT TEMPLATE %d\n", m_ticksPerTact.value() );
-		m_ticksPerTact.setValue( DefaultTicksPerTact );
-	} else {
-		// If the project file does not have ppqn value, default it to 192.
-		if ( m_ticksPerTact.value() == UndefinedTicksPerTact ) {
-			m_ticksPerTact.setValue( OldDefaultTicksPerTact );
-		}
-	}
 
-	printf ("LOAD m_ticksPerTact.value(): %d\n", m_ticksPerTact.value() );
-	printf ("LOAD m_ticksPerTact.isDefaultConstructed(): %s\n", m_ticksPerTact.isDefaultConstructed() ? "true" : "false" );
+	// // FIXME 
+	// // If the file is the default template, regard it 3840 TicksPerTact.
+	// // Actually the default template should be updated.
+	// if ( fileName == "data:/projects/templates/default.mpt" ) {
+	// 	printf ("LOAD0 DETECT TEMPLATE %d\n", m_ticksPerTact.value() );
+	// 	m_ticksPerTact.setValue( DefaultTicksPerTact );
+	// } else {
+	// 	/* 
+	// 	 *   FIXME , please.
+	// 	 *
+	// 	 *   This is a quick dirty solution for setting default value.
+	// 	 *
+	// 	 *   What I wanted to do is :
+	// 	 *
+	// 	 *   > If the project file does not have ppqn value, that means 
+	// 	 *   > the project file is made by LMMS older than v1.2.0 so 
+	// 	 *   > default it to 192 TicksPerTact to keep lower compatibility.
+	// 	 *   >
+	// 	 *   > Otherwise the project file is made by newer LMMS which means
+	// 	 *   > the the project file should have ppqn value.
+	// 	 *
+	// 	 *   This should be done by LMMS's serialization system but I don't know
+	// 	 *   how.
+	// 	 */
+
+	// 	// If the project file does not have ppqn value, default it to 192.
+	// 	if ( m_ticksPerTact.value() == UndefinedTicksPerTact ) {
+	// 		m_ticksPerTact.setValue( OldDefaultTicksPerTact );
+	// 	}
+	// }
+	// printf ("LOAD m_ticksPerTact.value(): %d\n", m_ticksPerTact.value() );
+	// printf ("LOAD m_ticksPerTact.isDefaultConstructed(): %s\n", m_ticksPerTact.isDefaultConstructed() ? "true" : "false" );
 
 	m_tempoModel.loadSettings( dataFile.head(), "bpm" );
 	m_timeSigModel.loadSettings( dataFile.head(), "timesig" );
 	m_masterVolumeModel.loadSettings( dataFile.head(), "mastervol" );
 	m_masterPitchModel.loadSettings( dataFile.head(), "masterpitch" );
-
-	// Modifying the opened document before parse it.
-	if ( /* ppqn == 192 */ true ) {
-		correct192to3840( dataFile );
-	}
 
 
 	if( m_playPos[Mode_PlaySong].m_timeLine )
@@ -1258,7 +1136,6 @@ void Song::loadProject( const QString & fileName )
 		{
 			if( node.nodeName() == "trackcontainer" )
 			{
-				printf( "trackcontaine\n" );
 				( (JournallingObject *)( this ) )->restoreState( node.toElement() );
 			}
 			else if( node.nodeName() == "controllers" )

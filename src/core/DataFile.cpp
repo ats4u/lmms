@@ -1072,6 +1072,107 @@ void DataFile::upgrade()
 	}
 }
 
+void correctAttr(  QDomElement& nd, const char* attrName, const int _ratio ) {
+	QDomAttr attr = nd.attributeNode( attrName );
+	int n = attr.value().toInt() * _ratio;
+	attr.setValue( QString::number( n ) );
+}
+
+void correctNode( DataFile& dataFile, const int _ratio, const char* tagName ) {
+	QDomNodeList nodelist=dataFile.elementsByTagName( tagName );
+	// printf( "%s QDomNodeList : %d\n", tagName, nodelist.count() );
+	for( int i=0,n=nodelist.count(); i<n; ++i ) {
+		QDomElement nd = nodelist.at(i).toElement();
+		correctAttr( nd, "pos", _ratio );
+		correctAttr( nd, "len", _ratio );
+		// printf( "nodeType: %d\n" , nd.nodeType() );
+		// qDebug() << "node value:" << nd.attributeNode( "key" ).value() << "\n";
+		// {
+		// 	QDomAttr an = nd.attributeNode( "pos" );
+		// 	int n = an.value().toInt() * _ratio;
+		// 	an.setValue( QString::number( n ) );
+		// }
+		// {
+		// 	QDomAttr an = nd.attributeNode( "len" );
+		// 	int n = an.value().toInt() * _ratio;
+		// 	an.setValue( QString::number( n ) );
+		// }
+	}
+}
+
+// void aaa( const char* a[], int count ){
+// 	for ( int i=0; i<count; i++ ) {
+// 		printf( "HELLO : %s\n", a[i] );
+// 	}
+// }
+// 
+// void aaaa( const std::vector<std::string> & a ){
+// 	for ( int i=0,len=a.size(); i<len; i++ ) {
+// 		printf( "HELLO : %s\n", a[i].c_str() );
+// 	}
+// }
+// 
+// int test() {
+// 	const char* ids[] = { "HELLO", "WORLD" };
+// 	aaa( ids, 2 );
+// 	aaaa( { "HELLO", "WORLD" } );
+// }
+
+
+
+void upgrade_ppqn( const DataFile& dataFile, const int ratio ) {
+	class Correct_PPQN {
+		const DataFile& dataFile;
+		const int ratio;
+		const char* tagName;
+		const std::list<std::string> attrs;
+
+		public:
+		Correct_PPQN(
+			const DataFile& dataFile,
+			const int ratio,
+			const char* tagName,
+			const std::list<std::string> & attrs 
+		) : dataFile( dataFile ),
+			ratio( ratio ),
+			tagName( tagName ),
+			attrs( attrs ) 
+		{
+			proc( dataFile,ratio,tagName,attrs );
+		}
+		~Correct_PPQN() {
+		}
+		void proc(
+			const DataFile& dataFile,
+			const int ratio,
+			const char* tagName,
+			const std::list<std::string> & attrs 
+		) {
+			QDomNodeList nodelist=dataFile.elementsByTagName( tagName );
+			// printf( "%s QDomNodeList : %d\n", tagName, nodelist.count() );
+			for( int i=0,n=nodelist.count(); i<n; ++i ) {
+				QDomElement nd = nodelist.at(i).toElement();
+				for ( std::list<std::string>::const_iterator it = attrs.begin(); it != attrs.end(); ++it ) {
+					correctAttr( nd, it->c_str(), ratio );
+				}
+			}
+		}
+
+		inline void correctAttr( QDomElement& nd, const char* attrName, const int _ratio ) {
+			QDomAttr attr = nd.attributeNode( attrName );
+			int n = attr.value().toInt() * _ratio;
+			attr.setValue( QString::number( n ) );
+		}
+	};
+	// test();
+	Correct_PPQN( dataFile, ratio,  "note"             , { "pos", "len" } );
+	Correct_PPQN( dataFile, ratio,  "bbtco"            , { "pos", "len" } );
+	Correct_PPQN( dataFile, ratio,  "sampletco"        , { "pos", "len" } );
+	Correct_PPQN( dataFile, ratio,  "automationpattern", { "pos", "len" } );
+	Correct_PPQN( dataFile, ratio,  "pattern"          , { "pos", "len" } );
+	Correct_PPQN( dataFile, ratio,  "time"             , { "pos", "len" } );
+	Correct_PPQN( dataFile, ratio,  "timeline"         , { "lp0pos", "lp1pos" } );
+}
 
 
 
@@ -1151,6 +1252,30 @@ void DataFile::loadData( const QByteArray & _data, const QString & _sourceFile )
 			}
 		}
 	}
+
+
+	// "data:/projects/templates/default.mpt"
+	{
+
+		// printf( "BPM TAG: %d\n" , m_head.elementsByTagName( "bpm").length() );
+		// QTextStream ss(stdout);
+		// ss << m_head << "\n";
+		// ss << "BPM COUNT: " << m_head.elementsByTagName( "bpm").length() << "\n";
+		// ss << "BPM ATTR:  " << m_head.hasAttribute( "bpm" ) << "\n";
+		// ss << "PPQN: " << m_head.hasAttribute( "ppqn" ) << "\n";
+
+		if ( ! m_head.hasAttribute( "ppqn" ) ) {
+			printf ("NO PPQN WAS FOUND\n" );
+			IntModel i( 3840, 0, 50000, 0 , SongEditor::tr( "Pulse Per Quater Note" ) );
+			i.saveSettings( *this, this->head(), "ppqn" );
+
+			// Correct ppqn value 192 to 3840
+			upgrade_ppqn( *this, 20 );
+		} else {
+			printf ("PPQN WAS FOUND\n" );
+		}
+	}
+
 
 	m_content = root.elementsByTagName( typeName( m_type ) ).
 							item( 0 ).toElement();
