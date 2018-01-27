@@ -1074,13 +1074,12 @@ void DataFile::upgrade()
 
 
 void upgrade_ppqn( DataFile& dataFile ) {
-	// "data:/projects/templates/default.mpt"
-	// printf( "BPM TAG: %d\n" , m_head.elementsByTagName( "bpm").length() );
-	// QTextStream ss(stdout);
-	// ss << m_head << "\n";
-	// ss << "BPM COUNT: " << m_head.elementsByTagName( "bpm").length() << "\n";
-	// ss << "BPM ATTR:  " << m_head.hasAttribute( "bpm" ) << "\n";
-	// ss << "PPQN: " << m_head.hasAttribute( "ppqn" ) << "\n";
+	// If the project file does not have ppqn value, that means 
+	// the project file is made by LMMS older than v1.2.0 so 
+	// default it to 192 TicksPerTact to keep lower compatibility.
+	// 
+	// Otherwise the project file is made by newer LMMS which means
+	// the the project file should have ppqn value.
 
 	QDomElement&  m_head = dataFile.head();
 

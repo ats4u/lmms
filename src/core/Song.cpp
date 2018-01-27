@@ -975,9 +975,6 @@ void Song::createNewProject()
 	{
 		gui->mainWindow()->resetWindowTitle();
 	}
-
-	printf ("CREATE m_ticksPerTact.value(): %d\n", m_ticksPerTact.value() );
-	printf ("CREATE m_ticksPerTact.isDefaultConstructed(): %s\n", m_ticksPerTact.isDefaultConstructed() ? "true" : "false" );
 }
 
 
@@ -1039,40 +1036,6 @@ void Song::loadProject( const QString & fileName )
 	
 	// loading ppqn from DOM
 	m_ticksPerTact.loadSettings( dataFile.head(), "ppqn" );
-
-	// // FIXME 
-	// // If the file is the default template, regard it 3840 TicksPerTact.
-	// // Actually the default template should be updated.
-	// if ( fileName == "data:/projects/templates/default.mpt" ) {
-	// 	printf ("LOAD0 DETECT TEMPLATE %d\n", m_ticksPerTact.value() );
-	// 	m_ticksPerTact.setValue( DefaultTicksPerTact );
-	// } else {
-	// 	/* 
-	// 	 *   FIXME , please.
-	// 	 *
-	// 	 *   This is a quick dirty solution for setting default value.
-	// 	 *
-	// 	 *   What I wanted to do is :
-	// 	 *
-	// 	 *   > If the project file does not have ppqn value, that means 
-	// 	 *   > the project file is made by LMMS older than v1.2.0 so 
-	// 	 *   > default it to 192 TicksPerTact to keep lower compatibility.
-	// 	 *   >
-	// 	 *   > Otherwise the project file is made by newer LMMS which means
-	// 	 *   > the the project file should have ppqn value.
-	// 	 *
-	// 	 *   This should be done by LMMS's serialization system but I don't know
-	// 	 *   how.
-	// 	 */
-
-	// 	// If the project file does not have ppqn value, default it to 192.
-	// 	if ( m_ticksPerTact.value() == UndefinedTicksPerTact ) {
-	// 		m_ticksPerTact.setValue( OldDefaultTicksPerTact );
-	// 	}
-	// }
-	// printf ("LOAD m_ticksPerTact.value(): %d\n", m_ticksPerTact.value() );
-	// printf ("LOAD m_ticksPerTact.isDefaultConstructed(): %s\n", m_ticksPerTact.isDefaultConstructed() ? "true" : "false" );
-
 	m_tempoModel.loadSettings( dataFile.head(), "bpm" );
 	m_timeSigModel.loadSettings( dataFile.head(), "timesig" );
 	m_masterVolumeModel.loadSettings( dataFile.head(), "mastervol" );
