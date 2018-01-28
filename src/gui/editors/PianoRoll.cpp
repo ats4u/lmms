@@ -340,7 +340,7 @@ PianoRoll::PianoRoll() :
 
 	m_topBottomScroll = new QScrollBar( Qt::Vertical, this );
 	m_topBottomScroll->setSingleStep( 1 );
-	m_topBottomScroll->setPageStep( 20 ); // ATSTODO
+	m_topBottomScroll->setPageStep( 20 );
 	connect( m_topBottomScroll, SIGNAL( valueChanged( int ) ), this,
 						SLOT( verScrolled( int ) ) );
 
@@ -2897,35 +2897,22 @@ void PianoRoll::paintEvent(QPaintEvent * pe )
 		}
 
 
-		// ATSTODO
-		{ // >>>
 		// Draw alternating shades on bars
-		float timeSignature = static_cast<float>( Engine::getSong()->getTimeSigModel().getNumerator() )
-				/ static_cast<float>( Engine::getSong()->getTimeSigModel().getDenominator() );
 		float zoomFactor = m_zoomLevels[m_zoomingModel.value()];
 		//the bars which disappears at the left side by scrolling
 		int leftBars = m_currentPosition * zoomFactor / MidiTime::ticksPerTact();
-
-		printf( "numerator %d " , Engine::getSong()->getTimeSigModel().getNumerator() );
-		printf( "denominator %d " ,Engine::getSong()->getTimeSigModel().getDenominator() );
-
-		// int offset = m_currentPosition * zoomFactor / timeSignature / 20;
-		// See xCoordOfTick()
-		int offset = m_currentPosition * m_ppt / MidiTime::ticksPerTact() ;
+		// Get the offset position for the left side alternating shades
+		int offset = m_currentPosition * m_ppt / MidiTime::ticksPerTact();
 
 		for( int x = WHITE_KEY_WIDTH, barCount = leftBars; x < width() + offset; x += m_ppt, ++barCount )
 		{
-			printf( "m_currentPosition=%d timsig=%f offset=%d x=%d barCount=%d m_ppt=%d\n", m_currentPosition, timeSignature, offset, x, barCount, m_ppt );
 			if( ( barCount + leftBars )  % 2 != 0 )
 			{
-				p.fillRect( 
-					x - offset, PR_TOP_MARGIN, 
-					m_ppt, height() - ( PR_BOTTOM_MARGIN + PR_TOP_MARGIN ),
+				p.fillRect( x - offset, PR_TOP_MARGIN, m_ppt, 
+					height() - ( PR_BOTTOM_MARGIN + PR_TOP_MARGIN ),
 					backgroundShade() );
 			}
 		}
-		printf( "\n" );
-		} // <<<
 
 
 		// Draw the vertical beat lines
@@ -3313,7 +3300,6 @@ void PianoRoll::wheelEvent(QWheelEvent * we )
 		// update combobox with zooming-factor
 		m_zoomingModel.setValue( z );
 	}
-	// ATSTODO
 	else if( we->modifiers() & Qt::ShiftModifier
 			 || we->orientation() == Qt::Horizontal )
 	{
