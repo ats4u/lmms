@@ -2908,7 +2908,8 @@ void PianoRoll::paintEvent(QPaintEvent * pe )
 		{
 			if( ( barCount + leftBars )  % 2 != 0 )
 			{
-				p.fillRect( x - offset, PR_TOP_MARGIN, m_ppt, 
+				p.fillRect( 
+					x - offset, PR_TOP_MARGIN, m_ppt, 
 					height() - ( PR_BOTTOM_MARGIN + PR_TOP_MARGIN ),
 					backgroundShade() );
 			}
