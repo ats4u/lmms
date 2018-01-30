@@ -159,6 +159,11 @@ PianoRoll::PianoRoll() :
 	m_quantize3Model(),
 	m_quantize4Model(),
 	m_noteLenModel(),
+	m_noteLen1Model(),
+	m_noteLen2Model(),
+	m_noteLen3Model(),
+	m_noteLen4Model(),
+	m_noteLen5Model(),
 	m_pattern( NULL ),
 	m_currentPosition(),
 	m_recording( false ),
@@ -377,20 +382,43 @@ PianoRoll::PianoRoll() :
 					this, SLOT( quantizeChanged() ) );
 
 	m_quantize1Model.addItem( "1/3" );
+	m_noteLen1Model.addItem(  "1/3" );
 	m_quantize1Model.addItem( "1/2" );
-	for ( int i = 1; i<=19; i++ )
+	m_noteLen1Model.addItem(  "1/2" );
+	for ( int i = 1; i<=19; i++ ) {
 		m_quantize1Model.addItem( QString::number( i ) );
-	for ( int i = 1; i<=19; i++ )
+		m_noteLen1Model.addItem(  QString::number( i ) );
+	}
+	for ( int i = 1; i<=19; i++ ) {
 		m_quantize2Model.addItem( QString::number( i ) );
-	for ( int i = 1; i<=19; i++ )
+		m_noteLen2Model.addItem(  QString::number( i ) );
+	}
+	for ( int i = 1; i<=19; i++ ) {
 		m_quantize3Model.addItem( QString::number( i ) );
-	for ( int i = 1; i<=19; i++ )
+		m_noteLen3Model.addItem(  QString::number( i ) );
+	}
+	for ( int i = 1; i<=19; i++ ) {
 		m_quantize4Model.addItem( QString::number( i ) );
+		m_noteLen4Model.addItem(  QString::number( i ) );
+	}
+
+	m_noteLen5Model.addItem( "0.5" );
+	m_noteLen5Model.addItem( "0.75" );
+	m_noteLen5Model.addItem( "1" );
+	m_noteLen5Model.addItem( "1.5" );
+	m_noteLen5Model.addItem( "1.75" );
+	m_noteLen5Model.addItem( "2" );
+	m_noteLen5Model.addItem( "3" );
 
 	m_quantize1Model.setValue( m_quantize1Model.findText( "1" ) );
 	m_quantize2Model.setValue( m_quantize2Model.findText( "4" ) );
 	m_quantize3Model.setValue( m_quantize3Model.findText( "4" ) );
 	m_quantize4Model.setValue( m_quantize4Model.findText( "1" ) );
+
+	m_noteLen1Model.setValue(  m_quantize1Model.findText( "1" ) );
+	m_noteLen2Model.setValue(  m_quantize2Model.findText( "4" ) );
+	m_noteLen3Model.setValue(  m_quantize3Model.findText( "4" ) );
+	m_noteLen4Model.setValue(  m_quantize4Model.findText( "1" ) );
 
 	connect( &m_quantize1Model, SIGNAL( dataChanged() ),
 					this, SLOT( quantize123Changed() ) );
@@ -401,9 +429,20 @@ PianoRoll::PianoRoll() :
 	connect( &m_quantize4Model, SIGNAL( dataChanged() ),
 					this, SLOT( quantize123Changed() ) );
 
+	connect( &m_noteLen1Model, SIGNAL( dataChanged() ),
+					this, SLOT( quantize123Changed() ) );
+	connect( &m_noteLen2Model, SIGNAL( dataChanged() ),
+					this, SLOT( quantize123Changed() ) );
+	connect( &m_noteLen3Model, SIGNAL( dataChanged() ),
+					this, SLOT( quantize123Changed() ) );
+	connect( &m_noteLen4Model, SIGNAL( dataChanged() ),
+					this, SLOT( quantize123Changed() ) );
 	// Set up note length model
 	m_noteLenModel.addItem( tr( "Last note" ),
 					new PixmapLoader( "edit_draw" ) );
+
+
+
 	const QString pixmaps[] = { "whole", "half", "quarter", "eighth",
 						"sixteenth", "thirtysecond", "triplethalf",
 						"tripletquarter", "tripleteighth",
@@ -4025,6 +4064,9 @@ void PianoRoll::quantize123Changed()
 
 	update();
 }
+void PianoRoll::noteLen123Changed()
+{
+}
 
 
 // FIXME 
@@ -4344,9 +4386,9 @@ PianoRollWindow::PianoRollWindow() :
 	m_quantizeComboBox->setFixedSize( 64, 22 );
 
 	QLabel * quantize1_lbl = new QLabel( m_toolBar );
-	quantize1_lbl->setText( "MEASURE" );
-	QFont f1( "Arial", 7, QFont::Bold);
-	quantize1_lbl->setFont( f1 );
+	quantize1_lbl->setText( "BAR" );
+	QFont qf1( "Arial", 7, QFont::Bold);
+	quantize1_lbl->setFont( qf1 );
 
 	m_quantize1ComboBox = new ComboBox( m_toolBar );
 	m_quantize1ComboBox->setModel( &m_editor->m_quantize1Model );
@@ -4354,32 +4396,31 @@ PianoRollWindow::PianoRollWindow() :
 
 	QLabel * quantize2_lbl = new QLabel( m_toolBar );
 	quantize2_lbl->setText( "BEATS" );
-	QFont f2( "Arial", 7, QFont::Bold);
-	quantize2_lbl->setFont( f2 );
+	QFont qf2( "Arial", 7, QFont::Bold);
+	quantize2_lbl->setFont( qf2 );
 
 	m_quantize2ComboBox = new ComboBox( m_toolBar );
 	m_quantize2ComboBox->setModel( &m_editor->m_quantize2Model );
 	m_quantize2ComboBox->setFixedSize( 40, 22 );
 
-
 	QLabel * quantize3_lbl = new QLabel( m_toolBar );
 	quantize3_lbl->setText( "TUPLETS" );
-	QFont f3( "Arial", 7, QFont::Bold);
-	quantize3_lbl->setFont( f3 );
+	QFont qf3( "Arial", 7, QFont::Bold);
+	quantize3_lbl->setFont( qf3 );
 
 	m_quantize3ComboBox = new ComboBox( m_toolBar );
 	m_quantize3ComboBox->setModel( &m_editor->m_quantize3Model );
 	m_quantize3ComboBox->setFixedSize( 40, 22 );
 
-
 	QLabel * quantize4_lbl = new QLabel( m_toolBar );
 	quantize4_lbl->setText( "x" );
-	QFont f4( "Arial", 7, QFont::Bold);
-	quantize4_lbl->setFont( f4 );
+	QFont qf4( "Arial", 7, QFont::Bold);
+	quantize4_lbl->setFont( qf4 );
 
 	m_quantize4ComboBox = new ComboBox( m_toolBar );
 	m_quantize4ComboBox->setModel( &m_editor->m_quantize4Model );
 	m_quantize4ComboBox->setFixedSize( 48, 22 );
+
 
 	// setup note-len-stuff
 	QLabel * note_len_lbl = new QLabel( m_toolBar );
@@ -4388,6 +4429,53 @@ PianoRollWindow::PianoRollWindow() :
 	m_noteLenComboBox = new ComboBox( m_toolBar );
 	m_noteLenComboBox->setModel( &m_editor->m_noteLenModel );
 	m_noteLenComboBox->setFixedSize( 105, 22 );
+
+	QLabel * noteLen1_lbl = new QLabel( m_toolBar );
+	noteLen1_lbl->setText( "BAR" );
+	QFont nf1( "Arial", 7, QFont::Bold);
+	noteLen1_lbl->setFont( nf1 );
+
+	m_noteLen1ComboBox = new ComboBox( m_toolBar );
+	m_noteLen1ComboBox->setModel( &m_editor->m_noteLen1Model );
+	m_noteLen1ComboBox->setFixedSize( 48, 22 );
+
+	QLabel * noteLen2_lbl = new QLabel( m_toolBar );
+	noteLen2_lbl->setText( "BEATS" );
+	QFont nf2( "Arial", 7, QFont::Bold);
+	noteLen2_lbl->setFont( nf2 );
+
+	m_noteLen2ComboBox = new ComboBox( m_toolBar );
+	m_noteLen2ComboBox->setModel( &m_editor->m_noteLen2Model );
+	m_noteLen2ComboBox->setFixedSize( 40, 22 );
+
+
+	QLabel * noteLen3_lbl = new QLabel( m_toolBar );
+	noteLen3_lbl->setText( "TUPLETS" );
+	QFont nf3( "Arial", 7, QFont::Bold);
+	noteLen3_lbl->setFont( nf3 );
+
+	m_noteLen3ComboBox = new ComboBox( m_toolBar );
+	m_noteLen3ComboBox->setModel( &m_editor->m_noteLen3Model );
+	m_noteLen3ComboBox->setFixedSize( 40, 22 );
+
+	QLabel * noteLen4_lbl = new QLabel( m_toolBar );
+	noteLen4_lbl->setText( "x" );
+	QFont nf4( "Arial", 7, QFont::Bold);
+	noteLen4_lbl->setFont( nf4 );
+
+	m_noteLen4ComboBox = new ComboBox( m_toolBar );
+	m_noteLen4ComboBox->setModel( &m_editor->m_noteLen4Model );
+	m_noteLen4ComboBox->setFixedSize( 48, 22 );
+
+	QLabel * noteLen5_lbl = new QLabel( m_toolBar );
+	noteLen5_lbl->setText( "." );
+	QFont nf5( "Arial", 7, QFont::Bold);
+	noteLen5_lbl->setFont( nf5 );
+
+	m_noteLen5ComboBox = new ComboBox( m_toolBar );
+	m_noteLen5ComboBox->setModel( &m_editor->m_noteLen5Model );
+	m_noteLen5ComboBox->setFixedSize( 48, 22 );
+
 
 	// setup scale-stuff
 	QLabel * scale_lbl = new QLabel( m_toolBar );
