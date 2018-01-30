@@ -193,7 +193,6 @@ protected slots:
 	void zoomingChanged();
 	void quantizeChanged();
 	void quantize123Changed();
-	void noteLen123Changed();
 	void quantizeNotes();
 
 	void updateSemiToneMarkerMenu();
@@ -306,11 +305,6 @@ private:
 	ComboBoxModel m_quantize3Model;
 	ComboBoxModel m_quantize4Model;
 	ComboBoxModel m_noteLenModel;
-	ComboBoxModel m_noteLen1Model;
-	ComboBoxModel m_noteLen2Model;
-	ComboBoxModel m_noteLen3Model;
-	ComboBoxModel m_noteLen4Model;
-	ComboBoxModel m_noteLen5Model;
 	ComboBoxModel m_scaleModel;
 	ComboBoxModel m_chordModel;
 
@@ -465,11 +459,6 @@ private:
 	ComboBox * m_quantize3ComboBox;
 	ComboBox * m_quantize4ComboBox;
 	ComboBox * m_noteLenComboBox;
-	ComboBox * m_noteLen1ComboBox;
-	ComboBox * m_noteLen2ComboBox;
-	ComboBox * m_noteLen3ComboBox;
-	ComboBox * m_noteLen4ComboBox;
-	ComboBox * m_noteLen5ComboBox;
 	ComboBox * m_scaleComboBox;
 	ComboBox * m_chordComboBox;
 
