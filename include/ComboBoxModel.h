@@ -50,6 +50,9 @@ public:
 	}
 
 	void addItem( const QString& item, PixmapLoader* loader = NULL );
+	void addSeparator() {
+		setItemSeparator( m_separators.size() -1 , true );
+	}
 
 	void clear();
 
@@ -64,15 +67,20 @@ public:
 	{
 		return m_items[value()].second;
 	}
-
+	const bool itemSeparator( int i ) {
+		return m_separators[i];
+	}
 	const QString & itemText( int i ) const
 	{
 		return m_items[qBound<int>( minValue(), i,  maxValue() )].first;
 	}
-
 	const PixmapLoader* itemPixmap( int i ) const
 	{
 		return m_items[qBound<int>( minValue(), i, maxValue() )].second;
+	}
+
+	const void setItemSeparator( int i, bool hasSeparator ) {
+		m_separators.replace( i , hasSeparator );
 	}
 
 	int size() const
@@ -84,6 +92,7 @@ public:
 private:
 	typedef QPair<QString, PixmapLoader *> Item;
 
+	QVector<bool> m_separators;
 	QVector<Item> m_items;
 
 } ;

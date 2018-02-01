@@ -136,6 +136,9 @@ void ComboBox::mousePressEvent( QMouseEvent* event )
 				QAction * a = m_menu.addAction( model()->itemPixmap( i ) ? model()->itemPixmap( i )->pixmap() : QPixmap(),
 													model()->itemText( i ) );
 				a->setData( i );
+
+				if ( model()->itemSeparator( i ) )
+					m_menu.addSeparator();
 			}
 
 			QPoint gpos = mapToGlobal( QPoint( 0, height() ) );
@@ -216,6 +219,7 @@ void ComboBox::paintEvent( QPaintEvent * _pe )
 			tx += pm.width() + 3;
 		}
 		const int y = ( height()+p.fontMetrics().height() ) /2;
+
 		p.setPen( QColor( 64, 64, 64 ) );
 		p.drawText( tx+1, y-3, model()->currentText() );
 		p.setPen( QColor( 224, 224, 224 ) );

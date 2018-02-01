@@ -29,16 +29,17 @@
 
 void ComboBoxModel::addItem( const QString& item, PixmapLoader* loader )
 {
+	m_separators.push_back( false );
 	m_items.push_back( qMakePair( item, loader ) );
 	setRange( 0, m_items.size() - 1 );
 }
 
 
-
-
 void ComboBoxModel::clear()
 {
 	setRange( 0, 0 );
+	m_separators.clear();
+
 	for( const Item& i : m_items )
 	{
 		delete i.second;

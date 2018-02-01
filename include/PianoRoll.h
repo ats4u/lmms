@@ -193,6 +193,7 @@ protected slots:
 	void zoomingChanged();
 	void quantizeChanged();
 	void quantize123Changed();
+	void noteLenChanged();
 	void noteLen123Changed();
 	void quantizeNotes();
 
