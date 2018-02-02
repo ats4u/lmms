@@ -1,5 +1,5 @@
 /*
- * ComboBoxModel.h - declaration of class ComboBoxModel
+ * ComboBoxModel2.h - declaration of class ComboBoxModel2
  *
  * Copyright (c) 2008-2014 Tobias Doerffel <tobydox/at/users.sourceforge.net>
  *
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef COMBOBOX_MODEL_H
-#define COMBOBOX_MODEL_H
+#ifndef COMBOBOX_MODEL2_H
+#define COMBOBOX_MODEL2_H
 
 #include <QtCore/QVector>
 #include <QtCore/QPair>
@@ -33,23 +33,26 @@
 class PixmapLoader;
 
 
-class EXPORT ComboBoxModel : public IntModel
+class EXPORT ComboBoxModel2 : public IntModel
 {
 	Q_OBJECT
 public:
-	ComboBoxModel( Model* parent = NULL,
+	ComboBoxModel2( Model* parent = NULL,
 					const QString& displayName = QString(),
 					bool isDefaultConstructed = false ) :
 		IntModel( 0, 0, 0, parent, displayName, isDefaultConstructed )
 	{
 	}
 
-	virtual ~ComboBoxModel()
+	virtual ~ComboBoxModel2()
 	{
 		clear();
 	}
 
 	void addItem( const QString& item, PixmapLoader* loader = NULL );
+	void addSeparator() {
+		setItemSeparator( m_separators.size() -1 , true );
+	}
 
 	void clear();
 
@@ -64,15 +67,20 @@ public:
 	{
 		return m_items[value()].second;
 	}
-
+	const bool itemSeparator( int i ) {
+		return m_separators[i];
+	}
 	const QString & itemText( int i ) const
 	{
 		return m_items[qBound<int>( minValue(), i,  maxValue() )].first;
 	}
-
 	const PixmapLoader* itemPixmap( int i ) const
 	{
 		return m_items[qBound<int>( minValue(), i, maxValue() )].second;
+	}
+
+	const void setItemSeparator( int i, bool hasSeparator ) {
+		m_separators.replace( i , hasSeparator );
 	}
 
 	int size() const
@@ -84,6 +92,7 @@ public:
 private:
 	typedef QPair<QString, PixmapLoader *> Item;
 
+	QVector<bool> m_separators;
 	QVector<Item> m_items;
 
 } ;

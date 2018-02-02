@@ -1,5 +1,5 @@
 /*
- * ComboBox.cpp - implementation of LMMS combobox
+ * ComboBox2.cpp - implementation of LMMS combobox
  *
  * Copyright (c) 2006-2014 Tobias Doerffel <tobydox/at/users.sourceforge.net>
  * Copyright (c) 2008-2009 Paul Giblock <pgib/at/users.sourceforge.net>
@@ -24,7 +24,7 @@
  */
 
 
-#include "ComboBox.h"
+#include "ComboBox2.h"
 
 #include <QApplication>
 #include <QDesktopWidget>
@@ -38,16 +38,16 @@
 #include "MainWindow.h"
 
 
-QPixmap * ComboBox::s_background = NULL;
-QPixmap * ComboBox::s_arrow = NULL;
-QPixmap * ComboBox::s_arrowSelected = NULL;
+QPixmap * ComboBox2::s_background = NULL;
+QPixmap * ComboBox2::s_arrow = NULL;
+QPixmap * ComboBox2::s_arrowSelected = NULL;
 
 const int CB_ARROW_BTN_WIDTH = 20;
 
 
-ComboBox::ComboBox( QWidget * _parent, const QString & _name ) :
+ComboBox2::ComboBox2( QWidget * _parent, const QString & _name ) :
 	QWidget( _parent ),
-	IntModelView( new ComboBoxModel( NULL, QString::null, true ), this ),
+	IntModelView( new ComboBoxModel2( NULL, QString::null, true ), this ),
 	m_menu( this ),
 	m_pressed( false )
 {
@@ -79,13 +79,13 @@ ComboBox::ComboBox( QWidget * _parent, const QString & _name ) :
 
 
 
-ComboBox::~ComboBox()
+ComboBox2::~ComboBox2()
 {
 }
 
 
 
-void ComboBox::selectNext()
+void ComboBox2::selectNext()
 {
 	model()->setInitValue( model()->value() + 1 );
 }
@@ -93,14 +93,14 @@ void ComboBox::selectNext()
 
 
 
-void ComboBox::selectPrevious()
+void ComboBox2::selectPrevious()
 {
 	model()->setInitValue( model()->value() - 1 );
 }
 
 
 
-void ComboBox::contextMenuEvent( QContextMenuEvent * event )
+void ComboBox2::contextMenuEvent( QContextMenuEvent * event )
 {
 	if( model() == NULL || event->x() <= width() - CB_ARROW_BTN_WIDTH )
 	{
@@ -116,7 +116,7 @@ void ComboBox::contextMenuEvent( QContextMenuEvent * event )
 
 
 
-void ComboBox::mousePressEvent( QMouseEvent* event )
+void ComboBox2::mousePressEvent( QMouseEvent* event )
 {
 	if( model() == NULL )
 	{
@@ -136,6 +136,9 @@ void ComboBox::mousePressEvent( QMouseEvent* event )
 				QAction * a = m_menu.addAction( model()->itemPixmap( i ) ? model()->itemPixmap( i )->pixmap() : QPixmap(),
 													model()->itemText( i ) );
 				a->setData( i );
+
+				if ( model()->itemSeparator( i ) )
+					m_menu.addSeparator();
 			}
 
 			QPoint gpos = mapToGlobal( QPoint( 0, height() ) );
@@ -170,7 +173,7 @@ void ComboBox::mousePressEvent( QMouseEvent* event )
 
 
 
-void ComboBox::paintEvent( QPaintEvent * _pe )
+void ComboBox2::paintEvent( QPaintEvent * _pe )
 {
 	QPainter p( this );
 
@@ -216,6 +219,7 @@ void ComboBox::paintEvent( QPaintEvent * _pe )
 			tx += pm.width() + 3;
 		}
 		const int y = ( height()+p.fontMetrics().height() ) /2;
+
 		p.setPen( QColor( 64, 64, 64 ) );
 		p.drawText( tx+1, y-3, model()->currentText() );
 		p.setPen( QColor( 224, 224, 224 ) );
@@ -226,7 +230,7 @@ void ComboBox::paintEvent( QPaintEvent * _pe )
 
 
 
-void ComboBox::wheelEvent( QWheelEvent* event )
+void ComboBox2::wheelEvent( QWheelEvent* event )
 {
 	if( model() )
 	{
@@ -239,7 +243,7 @@ void ComboBox::wheelEvent( QWheelEvent* event )
 
 
 
-void ComboBox::setItem( QAction* item )
+void ComboBox2::setItem( QAction* item )
 {
 	if( model() )
 	{

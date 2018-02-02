@@ -1,5 +1,5 @@
 /*
- * ComboBoxModel.cpp - implementation of ComboBoxModel
+ * ComboBoxModel2.cpp - implementation of ComboBoxModel2
  *
  * Copyright (c) 2008-2014 Tobias Doerffel <tobydox/at/users.sourceforge.net>
  *
@@ -22,23 +22,24 @@
  *
  */
 
-#include "ComboBoxModel.h"
+#include "ComboBoxModel2.h"
 #include "embed.h"
 
 
 
-void ComboBoxModel::addItem( const QString& item, PixmapLoader* loader )
+void ComboBoxModel2::addItem( const QString& item, PixmapLoader* loader )
 {
+	m_separators.push_back( false );
 	m_items.push_back( qMakePair( item, loader ) );
 	setRange( 0, m_items.size() - 1 );
 }
 
 
-
-
-void ComboBoxModel::clear()
+void ComboBoxModel2::clear()
 {
 	setRange( 0, 0 );
+	m_separators.clear();
+
 	for( const Item& i : m_items )
 	{
 		delete i.second;
@@ -52,7 +53,7 @@ void ComboBoxModel::clear()
 
 
 
-int ComboBoxModel::findText( const QString& txt ) const
+int ComboBoxModel2::findText( const QString& txt ) const
 {
 	for( QVector<Item>::ConstIterator it = m_items.begin(); it != m_items.end(); ++it )
 	{

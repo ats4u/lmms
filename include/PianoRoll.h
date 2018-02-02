@@ -32,7 +32,7 @@
 #include <QInputDialog>
 
 #include "Editor.h"
-#include "ComboBoxModel.h"
+#include "ComboBoxModel2.h"
 #include "SerializingObject.h"
 #include "Note.h"
 #include "lmms_basics.h"
@@ -46,7 +46,7 @@ class QString;
 class QMenu;
 class QSignalMapper;
 
-class ComboBox;
+class ComboBox2;
 class NotePlayHandle;
 class Pattern;
 class TimeLineWidget;
@@ -300,20 +300,20 @@ private:
 
 	static TextFloat * s_textFloat;
 
-	ComboBoxModel m_zoomingModel;
-	ComboBoxModel m_quantizeModel;
-	ComboBoxModel m_quantize1Model;
-	ComboBoxModel m_quantize2Model;
-	ComboBoxModel m_quantize3Model;
-	ComboBoxModel m_quantize4Model;
-	ComboBoxModel m_noteLenModel;
-	ComboBoxModel m_noteLen1Model;
-	ComboBoxModel m_noteLen2Model;
-	ComboBoxModel m_noteLen3Model;
-	ComboBoxModel m_noteLen4Model;
-	ComboBoxModel m_noteLen5Model;
-	ComboBoxModel m_scaleModel;
-	ComboBoxModel m_chordModel;
+	ComboBoxModel2 m_zoomingModel;
+	ComboBoxModel2 m_quantizeModel;
+	ComboBoxModel2 m_quantize1Model;
+	ComboBoxModel2 m_quantize2Model;
+	ComboBoxModel2 m_quantize3Model;
+	ComboBoxModel2 m_quantize4Model;
+	ComboBoxModel2 m_noteLenModel;
+	ComboBoxModel2 m_noteLen1Model;
+	ComboBoxModel2 m_noteLen2Model;
+	ComboBoxModel2 m_noteLen3Model;
+	ComboBoxModel2 m_noteLen4Model;
+	ComboBoxModel2 m_noteLen5Model;
+	ComboBoxModel2 m_scaleModel;
+	ComboBoxModel2 m_chordModel;
 
 	static const QVector<double> m_zoomLevels;
 
@@ -459,20 +459,20 @@ private:
 
 	PianoRoll* m_editor;
 
-	ComboBox * m_zoomingComboBox;
-	ComboBox * m_quantizeComboBox;
-	ComboBox * m_quantize1ComboBox;
-	ComboBox * m_quantize2ComboBox;
-	ComboBox * m_quantize3ComboBox;
-	ComboBox * m_quantize4ComboBox;
-	ComboBox * m_noteLenComboBox;
-	ComboBox * m_noteLen1ComboBox;
-	ComboBox * m_noteLen2ComboBox;
-	ComboBox * m_noteLen3ComboBox;
-	ComboBox * m_noteLen4ComboBox;
-	ComboBox * m_noteLen5ComboBox;
-	ComboBox * m_scaleComboBox;
-	ComboBox * m_chordComboBox;
+	ComboBox2 * m_zoomingComboBox;
+	ComboBox2 * m_quantizeComboBox;
+	ComboBox2 * m_quantize1ComboBox;
+	ComboBox2 * m_quantize2ComboBox;
+	ComboBox2 * m_quantize3ComboBox;
+	ComboBox2 * m_quantize4ComboBox;
+	ComboBox2 * m_noteLenComboBox;
+	ComboBox2 * m_noteLen1ComboBox;
+	ComboBox2 * m_noteLen2ComboBox;
+	ComboBox2 * m_noteLen3ComboBox;
+	ComboBox2 * m_noteLen4ComboBox;
+	ComboBox2 * m_noteLen5ComboBox;
+	ComboBox2 * m_scaleComboBox;
+	ComboBox2 * m_chordComboBox;
 
 };
 
