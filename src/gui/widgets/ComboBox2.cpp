@@ -133,7 +133,8 @@ void ComboBox2::mousePressEvent( QMouseEvent* event )
 			m_menu.clear();
 			for( int i = 0; i < model()->size(); ++i )
 			{
-				QAction * a = m_menu.addAction( model()->itemPixmap( i ) ? model()->itemPixmap( i )->pixmap() : QPixmap(),
+				printf( "Pointer %d" , model()->itemPixmap( i ) );
+				QAction * a = m_menu.addAction( model()->hasItemPixmap( i ) ? model()->itemPixmap( i ).pixmap() : QPixmap(),
 													model()->itemText( i ) );
 				a->setData( i );
 
@@ -207,7 +208,7 @@ void ComboBox2::paintEvent( QPaintEvent * _pe )
 	{
 		p.setFont( font() );
 		p.setClipRect( QRect( 4, 2, width() - CB_ARROW_BTN_WIDTH - 8, height() - 2 ) );
-		QPixmap pm = model()->currentData() ?  model()->currentData()->pixmap() : QPixmap();
+		QPixmap pm = model()->currentHasPixmap() ?  model()->currentData().pixmap() : QPixmap();
 		int tx = 5;
 		if( !pm.isNull() )
 		{

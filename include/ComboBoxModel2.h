@@ -31,9 +31,6 @@
 #include "AutomatableModel.h"
 #include "embed.h"
 
-class PixmapLoader;
-
-
 class EXPORT ComboBoxModel2 : public IntModel
 {
 	Q_OBJECT
@@ -44,25 +41,22 @@ public:
 		IntModel( 0, 0, 0, parent, displayName, isDefaultConstructed )
 	{
 	}
-
 	virtual ~ComboBoxModel2()
 	{
 		clear();
 	}
 
 	void addItem( const QString& text, 
-			PixmapLoader* pixmapLoader = NULL, 
-			const bool & isSeparator = false )
+			const PixmapLoader& pixmapLoader = PixmapLoader(), 
+			const bool& isSeparator = false )
 	{
-		// m_separators.push_back( false );
-		Item i( text, pixmapLoader, isSeparator );
-		items.push_back( i );
+		items.push_back( Item( text, pixmapLoader, isSeparator ) );
 		setRange( 0, items.size() - 1 );
 	}
 
 	void clear() {
-		for ( Item& i : items )
-			delete ( i.pixmapLoader );
+		//for ( Item& i : items )
+		//	delete ( i.pixmapLoader );
 
 		items.clear();
 		setRange( 0, 0 );
@@ -87,9 +81,14 @@ public:
 	{
 		return isValid() ?  ( items[ value() ].text         )  : nullptr;
 	}
-	const PixmapLoader* currentData() const
+	const PixmapLoader currentData() const
 	{
-		return isValid() ?   ( items[ value() ].pixmapLoader ) : NULL;
+		return isValid() ?   ( items[ value() ].pixmapLoader ) : PixmapLoader();
+	}
+	const bool currentHasPixmap() const
+	{
+		return false;
+		// return isValid() ?   ( items[ value() ].hasPixmapLoader ) : false;
 	}
 	const bool currentSeparator() const
 	{
@@ -107,14 +106,18 @@ public:
 	}
 
 	// pixmapLoader
-	const PixmapLoader* itemPixmap( int i ) const
+	const PixmapLoader itemPixmap( int i ) const
 	{
-		return isValid( i ) ? ( items[ i ].pixmapLoader ) : NULL;
+		return hasItemPixmap( i ) ? ( items[ i ].pixmapLoader ) : PixmapLoader();
 	}
-	void setItemPixmap( int i, PixmapLoader* pixmapLoader )
+	void setItemPixmap( const int i, const PixmapLoader& pixmapLoader )
 	{
 		if ( isValid( i ) )
 			items[ i ].pixmapLoader = pixmapLoader;
+	}
+	bool hasItemPixmap( int i ) const
+	{
+		return isValid( i ) ? ( items[ i ].hasPixmapLoader ) : false;
 	}
 
 	// separator
@@ -147,13 +150,41 @@ private:
 	class Item {
 		public :
 		QString text;
-		PixmapLoader * pixmapLoader;
+		bool hasPixmapLoader;
+		PixmapLoader pixmapLoader;
 		bool isSeparator;
 		
-		Item( const QString & text=QString::null, PixmapLoader * pixmapLoader=NULL , const bool & isSeparator=false ) :
-			text( text ), pixmapLoader( pixmapLoader ) , isSeparator( isSeparator )
-		{
-		}
+		Item(
+			const QString& text = QString::null
+		) : text( text ), 
+			hasPixmapLoader( false ), 
+			pixmapLoader( PixmapLoader() ),
+			isSeparator( false ) {}
+
+		Item(
+			const QString& text, 
+			const bool& isSeparator 
+		) : text( text ), 
+			hasPixmapLoader( false ),
+			pixmapLoader( PixmapLoader() ),
+			isSeparator( isSeparator ) {}
+
+		Item(
+			const QString& text, 
+			const PixmapLoader& pixmapLoader
+		) : text( text ),
+			hasPixmapLoader( true ),
+			pixmapLoader( pixmapLoader ),
+			isSeparator( false ) {}
+
+		Item(
+			const QString& text, 
+			const PixmapLoader& pixmapLoader,
+			const bool& isSeparator 
+		) : text( text ),
+			hasPixmapLoader( true ),
+			pixmapLoader( pixmapLoader ),
+			isSeparator( isSeparator ) {}
 	};
 	QVector<Item> items;
 };
