@@ -4078,10 +4078,10 @@ void PianoRoll::quantize123Changed()
 	if ( ! quantizeIsChanging ) {
 		quantizeIsChanging = true;
 
-		QString text1 = m_quantize1Model.currentText().toInt();
-		QString text2 = m_quantize2Model.currentText().toInt();
-		QString text3 = m_quantize3Model.currentText().toInt();
-		QString text4 = m_quantize4Model.currentText().toInt();
+		QString text1 = m_quantize1Model.currentText();
+		QString text2 = m_quantize2Model.currentText();
+		QString text3 = m_quantize3Model.currentText();
+		QString text4 = m_quantize4Model.currentText();
 
 		int i = (int)( text2.toInt() * text3.toInt() * text4.toInt() / text1ToDouble( text1 ) );
 
@@ -4093,6 +4093,7 @@ void PianoRoll::quantize123Changed()
 		{
 			// TAG_OTHER
 			int lastIndex = m_quantizeModel.size() -1;
+			// TODO
 			m_quantizeModel.setValue( lastIndex );
 		}
 

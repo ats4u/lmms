@@ -27,45 +27,5 @@
 
 
 
-void ComboBoxModel2::addItem( const QString& item, PixmapLoader* loader )
-{
-	m_separators.push_back( false );
-	m_items.push_back( qMakePair( item, loader ) );
-	setRange( 0, m_items.size() - 1 );
-}
-
-
-void ComboBoxModel2::clear()
-{
-	setRange( 0, 0 );
-	m_separators.clear();
-
-	for( const Item& i : m_items )
-	{
-		delete i.second;
-	}
-
-	m_items.clear();
-
-	emit propertiesChanged();
-}
-
-
-
-
-int ComboBoxModel2::findText( const QString& txt ) const
-{
-	for( QVector<Item>::ConstIterator it = m_items.begin(); it != m_items.end(); ++it )
-	{
-		if( ( *it ).first == txt )
-		{
-			return it - m_items.begin();
-		}
-	}
-	return -1; 
-}
-
-
-
 
 

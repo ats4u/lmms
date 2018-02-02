@@ -29,6 +29,7 @@
 #include <QtCore/QPair>
 
 #include "AutomatableModel.h"
+#include "embed.h"
 
 class PixmapLoader;
 
@@ -49,53 +50,113 @@ public:
 		clear();
 	}
 
-	void addItem( const QString& item, PixmapLoader* loader = NULL );
-	void addSeparator() {
-		setItemSeparator( m_separators.size() -1 , true );
-	}
-
-	void clear();
-
-	int findText( const QString& txt ) const;
-
-	QString currentText() const
+	void addItem( const QString& text, 
+			PixmapLoader* pixmapLoader = NULL, 
+			const bool & isSeparator = false )
 	{
-		return ( size() > 0 && value() < size() ) ? m_items[value()].first : QString();
+		// m_separators.push_back( false );
+		Item i( text, pixmapLoader, isSeparator );
+		items.push_back( i );
+		setRange( 0, items.size() - 1 );
 	}
 
+	void clear() {
+		for ( Item& i : items )
+			delete ( i.pixmapLoader );
+
+		items.clear();
+		setRange( 0, 0 );
+		emit propertiesChanged();
+	}
+
+	const int findText( const QString& text ) const
+	{
+		for( QVector<Item>::ConstIterator it = items.begin(); it != items.end(); ++it )
+		{
+			if( ( *it ).text == text )
+			{
+				return it - items.begin();
+			}
+		}
+		return -1; 
+	}
+
+
+	// current
+	const QString currentText() const
+	{
+		return isValid() ?  ( items[ value() ].text         )  : nullptr;
+	}
 	const PixmapLoader* currentData() const
 	{
-		return m_items[value()].second;
+		return isValid() ?   ( items[ value() ].pixmapLoader ) : NULL;
 	}
-	const bool itemSeparator( int i ) {
-		return m_separators[i];
-	}
-	const QString & itemText( int i ) const
+	const bool currentSeparator() const
 	{
-		return m_items[qBound<int>( minValue(), i,  maxValue() )].first;
+		return isValid() ?   ( items[ value() ].isSeparator  ) : false;
 	}
+
+	// text
+	const QString itemText( int i ) const
+	{
+		return  isValid() ? ( items[ i ].text ) : QString();
+	}
+	void setItemText( int i, QString text ) {
+		if ( isValid( i ) )
+			items[ i ].text = text;
+	}
+
+	// pixmapLoader
 	const PixmapLoader* itemPixmap( int i ) const
 	{
-		return m_items[qBound<int>( minValue(), i, maxValue() )].second;
+		return isValid( i ) ? ( items[ i ].pixmapLoader ) : NULL;
 	}
-
-	const void setItemSeparator( int i, bool hasSeparator ) {
-		m_separators.replace( i , hasSeparator );
-	}
-
-	int size() const
+	void setItemPixmap( int i, PixmapLoader* pixmapLoader )
 	{
-		return m_items.size();
+		if ( isValid( i ) )
+			items[ i ].pixmapLoader = pixmapLoader;
 	}
 
+	// separator
+	const bool itemSeparator( int i ) const
+	{
+		return isValid() ?     ( items[ i ].isSeparator ) : false;
+	}
+	void setItemSeparator( int i, bool isSeparator ) {
+		if ( isValid( i ) )
+			items[ i ].isSeparator = isSeparator;
+	}
+	void addSeparator() {
+		setItemSeparator( items.size() -1 , true );
+	}
 
+	//size
+	const int size() const
+	{
+		return items.size();
+	}
 private:
-	typedef QPair<QString, PixmapLoader *> Item;
-
-	QVector<bool> m_separators;
-	QVector<Item> m_items;
-
-} ;
+	const bool isValid() const
+	{
+		return ( 0 < size() && 0 <= value() && value() < size() );
+	}
+	const bool isValid( int newIndex ) const
+	{
+		return ( -1 <= newIndex && newIndex < size() );
+	}
+	class Item {
+		public :
+		QString text;
+		PixmapLoader * pixmapLoader;
+		bool isSeparator;
+		
+		Item( const QString & text=QString::null, PixmapLoader * pixmapLoader=NULL , const bool & isSeparator=false ) :
+			text( text ), pixmapLoader( pixmapLoader ) , isSeparator( isSeparator )
+		{
+		}
+	};
+	QVector<Item> items;
+};
 
 
 #endif
