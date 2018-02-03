@@ -3009,8 +3009,21 @@ void PianoRoll::paintEvent(QPaintEvent * pe )
 			++key;
 		}
 
-		QString text1 = m_quantize1Model.currentText();
-		double barsPerTact = text1ToDouble( text1 );
+// 		QString text1 = m_quantize1Model.currentText();
+// 		double barsPerTact = text1ToDouble( text1 );
+
+		double barsPerTact;
+		if ( m_quantizeModel.value() != 0 )
+		{
+			QString text1 = m_quantize1Model.currentText();
+			barsPerTact = text1ToDouble( text1 );
+		}
+		else
+		{
+			barsPerTact = 1;
+		}
+
+
 
 		// Draw alternating shades on bars
 		// FIXME 
@@ -3037,10 +3050,16 @@ void PianoRoll::paintEvent(QPaintEvent * pe )
 		// Draw the vertical beat lines
 		// int ticksPerBeat = DefaultTicksPerTact /
 		// 	Engine::getSong()->getTimeSigModel().getDenominator();
-		int ticksPerBeat = 
-			DefaultTicksPerTact / m_quantize2Model.currentText().toInt();
-		
-		ticksPerBeat = text1ToDouble( m_quantize1Model.currentText() ) * ticksPerBeat;
+
+		int ticksPerBeat;
+		{
+			int d = m_quantize2Model.currentText().toInt();
+			if ( d == 0 )
+				d = 1;
+			ticksPerBeat = DefaultTicksPerTact / d;
+		}
+		ticksPerBeat = barsPerTact * ticksPerBeat;
+ 
 
 		for( tick = m_currentPosition - m_currentPosition % ticksPerBeat,
 			x = xCoordOfTick( tick ); x <= width();
@@ -4037,6 +4056,10 @@ void PianoRoll::quantizeChanged()
 		if ( m_quantizeModel.value() == 0 ) {
 			if ( m_noteLenModel.value() == 0 ) {
 				// int nl = newNoteLen();
+				m_quantize1Model.setValue( -1 );
+				m_quantize2Model.setValue( -1 );
+				m_quantize3Model.setValue( -1 );
+				m_quantize4Model.setValue( -1 );
 
 			} else {
 				m_quantize1Model.setValue( m_noteLen1Model.value() );
@@ -4086,14 +4109,19 @@ void PianoRoll::quantize123Changed()
 
 		int i = (int)( text2.toInt() * text3.toInt() * text4.toInt() / text1ToDouble( text1 ) );
 
-		QString ratio = "1/" + QString::number( i );
-		int idx = m_quantizeModel.findText( ratio );
+		QString ratioString = "1/" + QString::number( i );
+		int idx = m_quantizeModel.findText( ratioString );
 		if ( 0<=idx )
+		{
+			int lastIndex = m_quantizeModel.size() -1;
+			m_quantizeModel.setItemText( lastIndex, OTHER );
 			m_quantizeModel.setValue( idx );
+		}
 		else
 		{
 			// TAG_OTHER
 			int lastIndex = m_quantizeModel.size() -1;
+			m_quantizeModel.setItemText( lastIndex, ratioString );
 			// TODO
 			m_quantizeModel.setValue( lastIndex );
 		}
@@ -4202,7 +4230,7 @@ int PianoRoll::quantization() const
 		}
 		else
 		{
-			return DefaultTicksPerTact / 16;
+			return DefaultTicksPerTact / 16; // ?
 		}
 	}
 
