@@ -38,7 +38,7 @@ public:
 	ComboBoxModel2( Model* parent = NULL,
 					const QString& displayName = QString(),
 					bool isDefaultConstructed = false ) :
-		IntModel( 0, 0, 0, parent, displayName, isDefaultConstructed )
+		IntModel( 0, -1, 0, parent, displayName, isDefaultConstructed )
 	{
 	}
 	virtual ~ComboBoxModel2()
@@ -51,7 +51,7 @@ public:
 			const bool& isSeparator = false )
 	{
 		items.push_back( Item( text, pixmapLoader, isSeparator ) );
-		setRange( 0, items.size() - 1 );
+		setRange( -1, items.size() - 1 );
 	}
 
 	void clear() {
@@ -59,7 +59,7 @@ public:
 		//	delete ( i.pixmapLoader );
 
 		items.clear();
-		setRange( 0, 0 );
+		setRange( -1, 0 );
 		emit propertiesChanged();
 	}
 

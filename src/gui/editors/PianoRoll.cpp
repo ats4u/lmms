@@ -109,6 +109,7 @@ const int NUM_EVEN_LENGTHS = 6;
 const int NUM_TRIPLET_LENGTHS = 5;
 
 
+static const char* OTHER = "other";
 
 QPixmap * PianoRoll::s_whiteKeySmallPm = NULL;
 QPixmap * PianoRoll::s_whiteKeySmallPressedPm = NULL;
@@ -380,7 +381,7 @@ PianoRoll::PianoRoll() :
 	m_quantizeModel.setValue( m_quantizeModel.findText( "1/16" ) );
 	m_quantizeModel.addSeparator();
 	// TAG_OTHER
-	m_quantizeModel.addItem( "other" );
+	m_quantizeModel.addItem( OTHER );
 
 	connect( &m_quantizeModel, SIGNAL( dataChanged() ),
 					this, SLOT( quantizeChanged() ) );
@@ -487,7 +488,7 @@ PianoRoll::PianoRoll() :
 	}
 	m_noteLenModel.addSeparator();
 	// TAG_OTHER
-	m_noteLenModel.addItem( "other" );
+	m_noteLenModel.addItem( OTHER );
 	m_noteLenModel.setValue( 0 );
 
 
@@ -4171,12 +4172,18 @@ void PianoRoll::noteLen123Changed()
 			i *= text1.toInt();
 
 
-		int idx = m_noteLenModel.findText( "1/" + QString::number( i ) );
+		QString ratioString = "1/" + QString::number( i );
+		int idx = m_noteLenModel.findText( ratioString );
 		if ( 0<=idx )
+		{
 			m_noteLenModel.setValue( idx );
+		}
 		else
-	// TAG_OTHER
-			m_noteLenModel.setValue( m_noteLenModel.findText( "other" ) );
+		{
+			int lastIndex = m_noteLenModel.size() -1;
+			m_noteLenModel.setItemText( lastIndex, ratioString );
+			m_noteLenModel.setValue( lastIndex );
+		}
 
 		noteLenIsChanging = false;
 	}
