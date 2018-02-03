@@ -133,7 +133,6 @@ void ComboBox2::mousePressEvent( QMouseEvent* event )
 			m_menu.clear();
 			for( int i = 0; i < model()->size(); ++i )
 			{
-				printf( "Pointer %d" , model()->itemPixmap( i ) );
 				QAction * a = m_menu.addAction( model()->hasItemPixmap( i ) ? model()->itemPixmap( i ).pixmap() : QPixmap(),
 													model()->itemText( i ) );
 				a->setData( i );

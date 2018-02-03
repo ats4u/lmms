@@ -3009,9 +3009,6 @@ void PianoRoll::paintEvent(QPaintEvent * pe )
 			++key;
 		}
 
-// 		QString text1 = m_quantize1Model.currentText();
-// 		double barsPerTact = text1ToDouble( text1 );
-
 		double barsPerTact;
 		if ( m_quantizeModel.value() != 0 )
 		{
@@ -4055,7 +4052,6 @@ void PianoRoll::quantizeChanged()
 
 		if ( m_quantizeModel.value() == 0 ) {
 			if ( m_noteLenModel.value() == 0 ) {
-				// int nl = newNoteLen();
 				m_quantize1Model.setValue( -1 );
 				m_quantize2Model.setValue( -1 );
 				m_quantize3Model.setValue( -1 );
