@@ -4143,30 +4143,40 @@ void PianoRoll::noteLenChanged()
 		m_noteLen4Model.setValue( m_noteLen4Model.findText( p4 ) );\
 		m_noteLen5Model.setValue( m_noteLen5Model.findText( p5 ) );
 
-		QString text = m_noteLenModel.currentText();
-		int i = text.right( text.length() - 2 ).toInt();
+		if ( m_noteLenModel.value() == 0 )
+		{
+			m_noteLen1Model.setValue( -1 );
+			m_noteLen2Model.setValue( -1 );
+			m_noteLen3Model.setValue( -1 );
+			m_noteLen4Model.setValue( -1 );
+			m_noteLen5Model.setValue( -1 );
+		}
+		else
+		{
+			QString text = m_noteLenModel.currentText();
+			int i = text.right( text.length() - 2 ).toInt();
 
+			if ( i == 192 ) {
+				// 192 %3 == 0 and 192 % 4 == 0 ,too
+				// But this will never happen.
+				SET_NOTELEN12345_COMBO( "1","4","4","12","1" );
 
-		if ( i == 192 ) {
-			// 192 %3 == 0 and 192 % 4 == 0 ,too
-			// But this will never happen.
-			SET_NOTELEN12345_COMBO( "1","4","4","12","1" );
-
-		} else if ( i % 3 == 0 ) {
-			// IMHO if you say 1/3 or 1/6, you usually want it to be 3 time. 
-			// Otherwise you usually consider it to be 4 time swing.
-			if ( i ==3 || i == 6 ) {
-				SET_NOTELEN12345_COMBO( "1","3", QString::number( i / 3 ), "1", "1" );
+			} else if ( i % 3 == 0 ) {
+				// IMHO if you say 1/3 or 1/6, you usually want it to be 3 time. 
+				// Otherwise you usually consider it to be 4 time swing.
+				if ( i ==3 || i == 6 ) {
+					SET_NOTELEN12345_COMBO( "1","3", QString::number( i / 3 ), "1", "1" );
+				} else {
+					SET_NOTELEN12345_COMBO( "1","4", QString::number( i / 4 ), "1", "1" );
+				}
 			} else {
-				SET_NOTELEN12345_COMBO( "1","4", QString::number( i / 4 ), "1", "1" );
-			}
-		} else {
-			if ( i ==1 || i == 2 ) {
-				SET_NOTELEN12345_COMBO( "1",QString::number( i ), "1" ,"1", "1" );
-			} else if ( i <= 16 ) {
-				SET_NOTELEN12345_COMBO( "1","4", QString::number( i / 4 ),"1", "1" );
-			} else {
-				SET_NOTELEN12345_COMBO( "1","4", "4", QString::number( i / 16 ), "1" );
+				if ( i ==1 || i == 2 ) {
+					SET_NOTELEN12345_COMBO( "1",QString::number( i ), "1" ,"1", "1" );
+				} else if ( i <= 16 ) {
+					SET_NOTELEN12345_COMBO( "1","4", QString::number( i / 4 ),"1", "1" );
+				} else {
+					SET_NOTELEN12345_COMBO( "1","4", "4", QString::number( i / 16 ), "1" );
+				}
 			}
 		}
 
