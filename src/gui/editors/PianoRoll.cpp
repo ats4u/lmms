@@ -109,7 +109,8 @@ const int NUM_EVEN_LENGTHS = 6;
 const int NUM_TRIPLET_LENGTHS = 5;
 
 
-static const char* OTHER = "other";
+static const char* LOCK = "LOCK";
+static const char* OTHER = "OTHER";
 
 QPixmap * PianoRoll::s_whiteKeySmallPm = NULL;
 QPixmap * PianoRoll::s_whiteKeySmallPressedPm = NULL;
@@ -365,17 +366,29 @@ PianoRoll::PianoRoll() :
 	connect( &m_zoomingModel, SIGNAL( dataChanged() ),
 					this, SLOT( zoomingChanged() ) );
 
+
+	static const QString quantizePixmap[] = {
+		"whole", "half", "quarter", "eighth",
+		"sixteenth", "thirtysecond", 
+		"triplethalf",
+		"tripletquarter", "tripleteighth",
+		"tripletsixteenth", "tripletthirtysecond"
+	} ;
+
+
 	// Set up quantization model
-	m_quantizeModel.addItem( tr( "Note lock" ) );
+	m_quantizeModel.addItem( tr( LOCK ) );
 	m_quantizeModel.addSeparator();
-	for( int i = 0; i <= NUM_EVEN_LENGTHS; ++i )
+	for( int i = 0; i < NUM_EVEN_LENGTHS; ++i )
 	{
-		m_quantizeModel.addItem( "1/" + QString::number( 1 << i ) );
+		PixmapLoader *loader = new PixmapLoader( "note_" + quantizePixmap[i] );
+		m_quantizeModel.addItem( "1/" + QString::number( 1 << i ), loader );
 	}
 	m_quantizeModel.addSeparator();
 	for( int i = 0; i < NUM_TRIPLET_LENGTHS; ++i )
 	{
-		m_quantizeModel.addItem( "1/" + QString::number( (1 << i) * 3 ) );
+		PixmapLoader *loader = new PixmapLoader( "note_" + quantizePixmap[i+NUM_EVEN_LENGTHS] );
+		m_quantizeModel.addItem( "1/" + QString::number( (1 << i) * 3 ), loader );
 	}
 	m_quantizeModel.addItem( "1/192" );
 	m_quantizeModel.setValue( m_quantizeModel.findText( "1/16" ) );
@@ -468,21 +481,24 @@ PianoRoll::PianoRoll() :
 	m_noteLenModel.addSeparator();
 
 
-	const QString pixmaps[] = { "whole", "half", "quarter", "eighth",
-						"sixteenth", "thirtysecond", "triplethalf",
-						"tripletquarter", "tripleteighth",
-						"tripletsixteenth", "tripletthirtysecond" } ;
+	static const QString noteLenPixmap[] = {
+		"whole", "half", "quarter", "eighth",
+		"sixteenth", "thirtysecond", 
+		"triplethalf",
+		"tripletquarter", "tripleteighth",
+		"tripletsixteenth", "tripletthirtysecond"
+	} ;
 
 	for( int i = 0; i < NUM_EVEN_LENGTHS; ++i )
 	{
-		PixmapLoader *loader = new PixmapLoader( "note_" + pixmaps[i] );
+		PixmapLoader *loader = new PixmapLoader( "note_" + noteLenPixmap[i] );
 		m_noteLenModel.addItem( "1/" + QString::number( 1 << i ), loader );
 	}
 	m_noteLenModel.addSeparator();
 
 	for( int i = 0; i < NUM_TRIPLET_LENGTHS; ++i )
 	{
-		PixmapLoader *loader = new PixmapLoader( "note_" + pixmaps[i+NUM_EVEN_LENGTHS] );
+		PixmapLoader *loader = new PixmapLoader( "note_" + noteLenPixmap[i+NUM_EVEN_LENGTHS] );
 		m_noteLenModel.addItem( "1/" + QString::number( (1 << i) * 3 ), loader );
 		// m_noteLenModel.addSeparator();
 	}
@@ -4388,8 +4404,8 @@ Note * PianoRoll::noteUnderMouse()
 
 
 PianoRollWindow::PianoRollWindow() :
-	Editor(true),
-	m_editor(new PianoRoll())
+	Editor( true ),
+	m_editor( new PianoRoll() )
 {
 	setCentralWidget( m_editor );
 
@@ -4539,112 +4555,165 @@ PianoRollWindow::PianoRollWindow() :
 
 	DropToolBar *zoomAndNotesToolBar = addDropToolBarToTop( tr( "Zoom and note controls" ) );
 
-	QLabel * zoom_lbl = new QLabel( m_toolBar );
-	zoom_lbl->setPixmap( embed::getIconPixmap( "zoom" ) );
+	{
+		QLabel * zoom_lbl = new QLabel( m_toolBar );
+		zoom_lbl->setPixmap( embed::getIconPixmap( "zoom" ) );
 
-	m_zoomingComboBox = new ComboBox2( m_toolBar );
-	m_zoomingComboBox->setModel( &m_editor->m_zoomingModel );
-	m_zoomingComboBox->setFixedSize( 64, 22 );
+		m_zoomingComboBox = new ComboBox2( m_toolBar );
+		m_zoomingComboBox->setModel( &m_editor->m_zoomingModel );
+		m_zoomingComboBox->setFixedSize( 64, 22 );
 
-	// setup quantize-stuff
-	QLabel * quantize_lbl = new QLabel( m_toolBar );
-	quantize_lbl->setPixmap( embed::getIconPixmap( "quantize" ) );
+		zoomAndNotesToolBar->addWidget( zoom_lbl );
+		zoomAndNotesToolBar->addWidget( m_zoomingComboBox );
+	}
 
-	m_quantizeComboBox = new ComboBox2( m_toolBar );
-	m_quantizeComboBox->setModel( &m_editor->m_quantizeModel );
-	m_quantizeComboBox->setFixedSize( 64, 22 );
+	const char* MSG_BAR = "BAR";
+	const char* MSG_BEAT = "BEAT";
+	const char* MSG_DIV  = "DIV";
+	const char* MSG_SUBDIV = "SUB";
+	const char* MSG_LEN   = "LEN";
+	{
+		const int comboBoxHeight = 22;
+		const int comboBoxWidth1 = 54;
+		const int comboBoxWidth2 = 24;
 
-	QLabel * quantize1_lbl = new QLabel( m_toolBar );
-	quantize1_lbl->setText( "BAR" );
-	QFont qf1( "Arial", 7, QFont::Bold);
-	quantize1_lbl->setFont( qf1 );
+		// setup quantize-stuff
+		QLabel * quantize_lbl = new QLabel( m_toolBar );
+		quantize_lbl->setPixmap( embed::getIconPixmap( "quantize" ) );
 
-	m_quantize1ComboBox = new ComboBox2( m_toolBar );
-	m_quantize1ComboBox->setModel( &m_editor->m_quantize1Model );
-	m_quantize1ComboBox->setFixedSize( 48, 22 );
+		m_quantizeComboBox = new ComboBox2( m_toolBar );
+		m_quantizeComboBox->setModel( &m_editor->m_quantizeModel );
+		m_quantizeComboBox->setFixedSize( comboBoxWidth1, comboBoxHeight );
 
-	QLabel * quantize2_lbl = new QLabel( m_toolBar );
-	quantize2_lbl->setText( "BEATS" );
-	QFont qf2( "Arial", 7, QFont::Bold);
-	quantize2_lbl->setFont( qf2 );
+		QLabel * quantize1_lbl = new QLabel( m_toolBar );
+		quantize1_lbl->setText( MSG_BAR );
+		QFont qf1( "Arial", 7, QFont::Bold);
+		quantize1_lbl->setFont( qf1 );
 
-	m_quantize2ComboBox = new ComboBox2( m_toolBar );
-	m_quantize2ComboBox->setModel( &m_editor->m_quantize2Model );
-	m_quantize2ComboBox->setFixedSize( 40, 22 );
+		m_quantize1ComboBox = new ComboBox2( m_toolBar );
+		m_quantize1ComboBox->setModel( &m_editor->m_quantize1Model );
+		m_quantize1ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
 
-	QLabel * quantize3_lbl = new QLabel( m_toolBar );
-	quantize3_lbl->setText( "TUPLETS" );
-	QFont qf3( "Arial", 7, QFont::Bold);
-	quantize3_lbl->setFont( qf3 );
+		QLabel * quantize2_lbl = new QLabel( m_toolBar );
+		quantize2_lbl->setText( MSG_BEAT  );
+		QFont qf2( "Arial", 7, QFont::Bold);
+		quantize2_lbl->setFont( qf2 );
 
-	m_quantize3ComboBox = new ComboBox2( m_toolBar );
-	m_quantize3ComboBox->setModel( &m_editor->m_quantize3Model );
-	m_quantize3ComboBox->setFixedSize( 40, 22 );
+		m_quantize2ComboBox = new ComboBox2( m_toolBar );
+		m_quantize2ComboBox->setModel( &m_editor->m_quantize2Model );
+		m_quantize2ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
 
-	QLabel * quantize4_lbl = new QLabel( m_toolBar );
-	quantize4_lbl->setText( "x" );
-	QFont qf4( "Arial", 7, QFont::Bold);
-	quantize4_lbl->setFont( qf4 );
+		QLabel * quantize3_lbl = new QLabel( m_toolBar );
+		quantize3_lbl->setText( MSG_DIV );
+		QFont qf3( "Arial", 7, QFont::Bold);
+		quantize3_lbl->setFont( qf3 );
 
-	m_quantize4ComboBox = new ComboBox2( m_toolBar );
-	m_quantize4ComboBox->setModel( &m_editor->m_quantize4Model );
-	m_quantize4ComboBox->setFixedSize( 48, 22 );
+		m_quantize3ComboBox = new ComboBox2( m_toolBar );
+		m_quantize3ComboBox->setModel( &m_editor->m_quantize3Model );
+		m_quantize3ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
 
+		QLabel * quantize4_lbl = new QLabel( m_toolBar );
+		quantize4_lbl->setText( MSG_SUBDIV );
+		QFont qf4( "Arial", 7, QFont::Bold);
+		quantize4_lbl->setFont( qf4 );
 
-
-	// setup note-len-stuff
-	QLabel * note_len_lbl = new QLabel( m_toolBar );
-	note_len_lbl->setPixmap( embed::getIconPixmap( "note" ) );
-
-	m_noteLenComboBox = new ComboBox2( m_toolBar );
-	m_noteLenComboBox->setModel( &m_editor->m_noteLenModel );
-	m_noteLenComboBox->setFixedSize( 105, 22 );
-
-	QLabel * noteLen1_lbl = new QLabel( m_toolBar );
-	noteLen1_lbl->setText( "BAR" );
-	QFont nf1( "Arial", 7, QFont::Bold);
-	noteLen1_lbl->setFont( nf1 );
-
-	m_noteLen1ComboBox = new ComboBox2( m_toolBar );
-	m_noteLen1ComboBox->setModel( &m_editor->m_noteLen1Model );
-	m_noteLen1ComboBox->setFixedSize( 48, 22 );
-
-	QLabel * noteLen2_lbl = new QLabel( m_toolBar );
-	noteLen2_lbl->setText( "BEATS" );
-	QFont nf2( "Arial", 7, QFont::Bold);
-	noteLen2_lbl->setFont( nf2 );
-
-	m_noteLen2ComboBox = new ComboBox2( m_toolBar );
-	m_noteLen2ComboBox->setModel( &m_editor->m_noteLen2Model );
-	m_noteLen2ComboBox->setFixedSize( 40, 22 );
+		m_quantize4ComboBox = new ComboBox2( m_toolBar );
+		m_quantize4ComboBox->setModel( &m_editor->m_quantize4Model );
+		m_quantize4ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
 
 
-	QLabel * noteLen3_lbl = new QLabel( m_toolBar );
-	noteLen3_lbl->setText( "TUPLETS" );
-	QFont nf3( "Arial", 7, QFont::Bold);
-	noteLen3_lbl->setFont( nf3 );
+		zoomAndNotesToolBar->addSeparator();
+		zoomAndNotesToolBar->addWidget( quantize_lbl );
+		zoomAndNotesToolBar->addWidget( m_quantizeComboBox );
 
-	m_noteLen3ComboBox = new ComboBox2( m_toolBar );
-	m_noteLen3ComboBox->setModel( &m_editor->m_noteLen3Model );
-	m_noteLen3ComboBox->setFixedSize( 40, 22 );
+		zoomAndNotesToolBar->addSeparator();
+		zoomAndNotesToolBar->addWidget( quantize1_lbl );
+		zoomAndNotesToolBar->addWidget( m_quantize1ComboBox );
+		zoomAndNotesToolBar->addWidget( quantize2_lbl );
+		zoomAndNotesToolBar->addWidget( m_quantize2ComboBox );
+		zoomAndNotesToolBar->addWidget( quantize3_lbl );
+		zoomAndNotesToolBar->addWidget( m_quantize3ComboBox );
+		zoomAndNotesToolBar->addWidget( quantize4_lbl );
+		zoomAndNotesToolBar->addWidget( m_quantize4ComboBox );
+	}
 
-	QLabel * noteLen4_lbl = new QLabel( m_toolBar );
-	noteLen4_lbl->setText( "x" );
-	QFont nf4( "Arial", 7, QFont::Bold);
-	noteLen4_lbl->setFont( nf4 );
 
-	m_noteLen4ComboBox = new ComboBox2( m_toolBar );
-	m_noteLen4ComboBox->setModel( &m_editor->m_noteLen4Model );
-	m_noteLen4ComboBox->setFixedSize( 48, 22 );
 
-	QLabel * noteLen5_lbl = new QLabel( m_toolBar );
-	noteLen5_lbl->setText( "." );
-	QFont nf5( "Arial", 7, QFont::Bold);
-	noteLen5_lbl->setFont( nf5 );
+	{
+		const int comboBoxHeight = 22;
+		const int comboBoxWidth1 = 54;
+		const int comboBoxWidth2 = 24;
 
-	m_noteLen5ComboBox = new ComboBox2( m_toolBar );
-	m_noteLen5ComboBox->setModel( &m_editor->m_noteLen5Model );
-	m_noteLen5ComboBox->setFixedSize( 48, 22 );
+		// setup note-len-stuff
+		QLabel * note_len_lbl = new QLabel( m_toolBar );
+		note_len_lbl->setPixmap( embed::getIconPixmap( "note" ) );
+
+		m_noteLenComboBox = new ComboBox2( m_toolBar );
+		m_noteLenComboBox->setModel( &m_editor->m_noteLenModel );
+		m_noteLenComboBox->setFixedSize( comboBoxWidth1, comboBoxHeight );
+
+		QLabel * noteLen1_lbl = new QLabel( m_toolBar );
+		noteLen1_lbl->setText( MSG_BAR );
+		QFont nf1( "Arial", 7, QFont::Bold);
+		noteLen1_lbl->setFont( nf1 );
+
+		m_noteLen1ComboBox = new ComboBox2( m_toolBar );
+		m_noteLen1ComboBox->setModel( &m_editor->m_noteLen1Model );
+		m_noteLen1ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
+
+		QLabel * noteLen2_lbl = new QLabel( m_toolBar );
+		noteLen2_lbl->setText( MSG_BEAT );
+		QFont nf2( "Arial", 7, QFont::Bold);
+		noteLen2_lbl->setFont( nf2 );
+
+		m_noteLen2ComboBox = new ComboBox2( m_toolBar );
+		m_noteLen2ComboBox->setModel( &m_editor->m_noteLen2Model );
+		m_noteLen2ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
+
+
+		QLabel * noteLen3_lbl = new QLabel( m_toolBar );
+		noteLen3_lbl->setText( MSG_DIV );
+		QFont nf3( "Arial", 7, QFont::Bold);
+		noteLen3_lbl->setFont( nf3 );
+
+		m_noteLen3ComboBox = new ComboBox2( m_toolBar );
+		m_noteLen3ComboBox->setModel( &m_editor->m_noteLen3Model );
+		m_noteLen3ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
+
+		QLabel * noteLen4_lbl = new QLabel( m_toolBar );
+		noteLen4_lbl->setText( MSG_SUBDIV );
+		QFont nf4( "Arial", 7, QFont::Bold);
+		noteLen4_lbl->setFont( nf4 );
+
+		m_noteLen4ComboBox = new ComboBox2( m_toolBar );
+		m_noteLen4ComboBox->setModel( &m_editor->m_noteLen4Model );
+		m_noteLen4ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
+
+		QLabel * noteLen5_lbl = new QLabel( m_toolBar );
+		noteLen5_lbl->setText( MSG_LEN );
+		QFont nf5( "Arial", 7, QFont::Bold);
+		noteLen5_lbl->setFont( nf5 );
+
+		m_noteLen5ComboBox = new ComboBox2( m_toolBar );
+		m_noteLen5ComboBox->setModel( &m_editor->m_noteLen5Model );
+		m_noteLen5ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
+
+
+		zoomAndNotesToolBar->addSeparator();
+		zoomAndNotesToolBar->addWidget( note_len_lbl );
+		zoomAndNotesToolBar->addWidget( m_noteLenComboBox );
+		zoomAndNotesToolBar->addSeparator();
+		zoomAndNotesToolBar->addWidget( noteLen1_lbl );
+		zoomAndNotesToolBar->addWidget( m_noteLen1ComboBox );
+		zoomAndNotesToolBar->addWidget( noteLen2_lbl );
+		zoomAndNotesToolBar->addWidget( m_noteLen2ComboBox );
+		zoomAndNotesToolBar->addWidget( noteLen3_lbl );
+		zoomAndNotesToolBar->addWidget( m_noteLen3ComboBox );
+		zoomAndNotesToolBar->addWidget( noteLen4_lbl );
+		zoomAndNotesToolBar->addWidget( m_noteLen4ComboBox );
+		zoomAndNotesToolBar->addWidget( noteLen5_lbl );
+		zoomAndNotesToolBar->addWidget( m_noteLen5ComboBox );
+	}
 
 
 	// setup scale-stuff
@@ -4662,39 +4731,6 @@ PianoRollWindow::PianoRollWindow() :
 	m_chordComboBox = new ComboBox2( m_toolBar );
 	m_chordComboBox->setModel( &m_editor->m_chordModel );
 	m_chordComboBox->setFixedSize( 105, 22 );
-
-
-	zoomAndNotesToolBar->addWidget( zoom_lbl );
-	zoomAndNotesToolBar->addWidget( m_zoomingComboBox );
-
-	zoomAndNotesToolBar->addSeparator();
-	zoomAndNotesToolBar->addWidget( quantize_lbl );
-	zoomAndNotesToolBar->addWidget( m_quantizeComboBox );
-
-	zoomAndNotesToolBar->addSeparator();
-	zoomAndNotesToolBar->addWidget( quantize1_lbl );
-	zoomAndNotesToolBar->addWidget( m_quantize1ComboBox );
-	zoomAndNotesToolBar->addWidget( quantize2_lbl );
-	zoomAndNotesToolBar->addWidget( m_quantize2ComboBox );
-	zoomAndNotesToolBar->addWidget( quantize3_lbl );
-	zoomAndNotesToolBar->addWidget( m_quantize3ComboBox );
-	zoomAndNotesToolBar->addWidget( quantize4_lbl );
-	zoomAndNotesToolBar->addWidget( m_quantize4ComboBox );
-
-	zoomAndNotesToolBar->addSeparator();
-	zoomAndNotesToolBar->addWidget( note_len_lbl );
-	zoomAndNotesToolBar->addWidget( m_noteLenComboBox );
-	zoomAndNotesToolBar->addSeparator();
-	zoomAndNotesToolBar->addWidget( noteLen1_lbl );
-	zoomAndNotesToolBar->addWidget( m_noteLen1ComboBox );
-	zoomAndNotesToolBar->addWidget( noteLen2_lbl );
-	zoomAndNotesToolBar->addWidget( m_noteLen2ComboBox );
-	zoomAndNotesToolBar->addWidget( noteLen3_lbl );
-	zoomAndNotesToolBar->addWidget( m_noteLen3ComboBox );
-	zoomAndNotesToolBar->addWidget( noteLen4_lbl );
-	zoomAndNotesToolBar->addWidget( m_noteLen4ComboBox );
-	zoomAndNotesToolBar->addWidget( noteLen5_lbl );
-	zoomAndNotesToolBar->addWidget( m_noteLen5ComboBox );
 
 
 	zoomAndNotesToolBar->addSeparator();

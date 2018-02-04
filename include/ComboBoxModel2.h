@@ -87,8 +87,8 @@ public:
 	}
 	const bool currentHasPixmap() const
 	{
-		return false;
-		// return isValid() ?   ( items[ value() ].hasPixmapLoader ) : false;
+		// return false;
+		return isValid() ?   ( items[ value() ].hasPixmapLoader ) : false;
 	}
 	const bool currentSeparator() const
 	{
@@ -101,8 +101,10 @@ public:
 		return  isValid() ? ( items[ i ].text ) : QString();
 	}
 	void setItemText( int i, QString text ) {
-		if ( isValid( i ) )
+		if ( isValid( i ) ) {
 			items[ i ].text = text;
+			emit dataChanged();
+		}
 	}
 
 	// pixmapLoader
@@ -112,8 +114,10 @@ public:
 	}
 	void setItemPixmap( const int i, const PixmapLoader& pixmapLoader )
 	{
-		if ( isValid( i ) )
+		if ( isValid( i ) ) {
 			items[ i ].pixmapLoader = pixmapLoader;
+			emit dataChanged();
+		}
 	}
 	bool hasItemPixmap( int i ) const
 	{
@@ -126,8 +130,10 @@ public:
 		return isValid() ?     ( items[ i ].isSeparator ) : false;
 	}
 	void setItemSeparator( int i, bool isSeparator ) {
-		if ( isValid( i ) )
+		if ( isValid( i ) ) {
 			items[ i ].isSeparator = isSeparator;
+			emit dataChanged();
+		}
 	}
 	void addSeparator() {
 		setItemSeparator( items.size() -1 , true );

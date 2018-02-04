@@ -59,6 +59,8 @@ public slots:
 protected:
 	virtual void contextMenuEvent( QContextMenuEvent* event );
 	virtual void mousePressEvent( QMouseEvent* event );
+	virtual void mouseMoveEvent( QMouseEvent* event );
+	virtual void mouseReleaseEvent( QMouseEvent* event );
 	virtual void paintEvent( QPaintEvent* event );
 	virtual void wheelEvent( QWheelEvent* event );
 
@@ -71,6 +73,9 @@ private:
 	QMenu m_menu;
 
 	bool m_pressed;
+	bool m_moved;
+	QPoint m_lastMousePos;
+	int m_lastValue;
 
 
 private slots:
