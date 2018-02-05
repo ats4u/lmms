@@ -4195,7 +4195,6 @@ void PianoRoll::noteLenChanged()
 
 				bool found =false;
 				tick_t t1 = newNoteLen().getTicks();
-				tick_t t2 = newNoteLen().getTicks();
 
 				for ( int i1=1; i1<19; i1++ )
 				{
@@ -4207,7 +4206,7 @@ void PianoRoll::noteLenChanged()
 							{
 								for ( int i5=1; i5<19; i5++ )
 								{
-									t2 = ( ( ( ((double)DefaultTicksPerTact) * i1 ) / i2 / i3 / i4 ) * i5 );
+									tick_t t2 = ( ( ( ((double)DefaultTicksPerTact) * i1 ) / i2 / i3 / i4 ) * i5 );
 									if ( abs( t2 - t1 ) < c_noteLenThreshold )
 									{
 										found = true;
@@ -4221,81 +4220,14 @@ void PianoRoll::noteLenChanged()
 												);
 										goto NEW_NOTE_LEN_BREAK_LOOP;
 									}
+									else if ( t1 < t2 )
+										continue;
 								}
 							}
 						}
 					}
 				}
 NEW_NOTE_LEN_BREAK_LOOP:
-
-//				if ( ! found )
-//					for ( int i=1; i<4; i++ )
-//					{
-//						if ( abs( DefaultTicksPerTact * i - t1  ) < c_noteLenThreshold )
-//						{
-//							found = true;
-//							SET_NOTELEN12345_COMBO( QString::number( i ) , "1","1","1","1" );
-//						}
-//					}
-//
-//				if ( ! found )
-//					for ( int i=1; i<20; i++ )
-//					{
-//						if ( abs( DefaultTicksPerTact * i - t1  ) < c_noteLenThreshold )
-//						{
-//							found = true;
-//							SET_NOTELEN12345_COMBO( QString::number( i ) , "1","1","1","1" );
-//						}
-//					}
-//
-//				if ( t1 % DefaultTicksPerTact == 0 )
-//				{
-//					// 1. Look up bars
-//					SET_NOTELEN12345_COMBO( QString::number( t1 / DefaultTicksPerTact ) ,
-//							"1","1","1","1" );
-//				}
-//				else
-//				{
-//
-//					// 2. Look up subdiv
-//					tick_t t2 = DefaultTicksPerTact / t1;
-//					for ( int i2=3; i2<19; i2++ )
-//					{
-//						if ( t2 % i2 == 0 )
-//						{
-//
-//							// 3. Look up beat division
-//							tick_t t3 = t2 / i2;
-//							for ( int i3=2; i3<19; i3++ )
-//							{
-//								if ( t3 % i3 == 0 )
-//								{
-//
-//									// 4. Look up beat subdivision
-//									tick_t t4 = t3 / i3;
-//									for ( int i4=1; i4<19; i4++ )
-//									{
-//										if ( t4 % i4 == 0 )
-//										{
-//											tick_t t5 = t4 / i4;
-//
-//											printf( "FOUND\n" );
-//											found = true;
-//											SET_NOTELEN12345_COMBO( 
-//													"1",
-//													QString::number( i2 ),
-//													QString::number( i3 ),
-//													QString::number( i4 ),
-//													QString::number( t5 )
-//													);
-//
-//										}
-//									}
-//								}
-//							}
-//						}
-//					}
-//				}
 
 				if ( ! found ) {
 					m_noteLen1Model.setValue( -1 );
