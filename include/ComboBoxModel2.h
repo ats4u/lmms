@@ -98,7 +98,7 @@ public:
 	// text
 	const QString itemText( int i ) const
 	{
-		return  isValid() ? ( items[ i ].text ) : QString();
+		return  isValid( i ) ? ( items[ i ].text ) : QString();
 	}
 	void setItemText( int i, QString text ) {
 		if ( isValid( i ) ) {
@@ -127,7 +127,7 @@ public:
 	// separator
 	const bool itemSeparator( int i ) const
 	{
-		return isValid() ?     ( items[ i ].isSeparator ) : false;
+		return isValid( i ) ?     ( items[ i ].isSeparator ) : false;
 	}
 	void setItemSeparator( int i, bool isSeparator ) {
 		if ( isValid( i ) ) {

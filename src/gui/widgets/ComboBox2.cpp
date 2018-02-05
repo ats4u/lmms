@@ -164,6 +164,7 @@ void ComboBox2::mouseReleaseEvent( QMouseEvent* event )
 		m_menu.clear();
 		for( int i = 0; i < model()->size(); ++i )
 		{
+			//  printf( "m_menu : %d\n", i );
 			QAction * a = m_menu.addAction( model()->hasItemPixmap( i ) ? model()->itemPixmap( i ).pixmap() : QPixmap(),
 												model()->itemText( i ) );
 			a->setData( i );
