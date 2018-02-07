@@ -110,7 +110,7 @@ const int NUM_TRIPLET_LENGTHS = 5;
 
 
 static const char* LOCK = "LOCK";
-static const char* OTHER = "OTHER";
+static const char* OTHER = "---";
 
 QPixmap * PianoRoll::s_whiteKeySmallPm = NULL;
 QPixmap * PianoRoll::s_whiteKeySmallPressedPm = NULL;
@@ -185,7 +185,6 @@ PianoRoll::PianoRoll() :
 	m_noteLen2Model(),
 	m_noteLen3Model(),
 	m_noteLen4Model(),
-	m_noteLen5Model(),
 	m_pattern( NULL ),
 	m_currentPosition(),
 	m_recording( false ),
@@ -413,56 +412,47 @@ PianoRoll::PianoRoll() :
 	m_quantizeModel.addItem( "1/192" );
 	m_quantizeModel.setValue( m_quantizeModel.findText( "1/16" ) );
 	m_quantizeModel.addSeparator();
-	// TAG_OTHER
-	m_quantizeModel.addItem( OTHER );
+
+	// TAG_QUANTIZE_OTHER
+	m_quantizeModel.addItem( "1/20" );
+
+	m_quantizeModelState_other.append( "1" );
+	m_quantizeModelState_other.append( "5" );
+	m_quantizeModelState_other.append( "4" );
+	m_quantizeModelState_other.append( "1" );
 
 	connect( &m_quantizeModel, SIGNAL( dataChanged() ),
 					this, SLOT( quantizeChanged() ) );
 	connect( &m_noteLenModel, SIGNAL( dataChanged() ),
 					this, SLOT( noteLenChanged() ) );
 
+	// initialize quantize[1-5]Model
 	m_quantize1Model.addItem( "1/3" );
-	m_noteLen1Model.addItem(  "1/3" );
 	m_quantize1Model.addItem( "1/2" );
-	m_noteLen1Model.addItem(  "1/2" );
 	for ( int i = 1; i<=19; i++ ) {
 		m_quantize1Model.addItem( QString::number( i ) );
-		m_noteLen1Model.addItem(  QString::number( i ) );
 	}
 	for ( int i = 1; i<=19; i++ ) {
 		m_quantize2Model.addItem( QString::number( i ) );
-		m_noteLen2Model.addItem(  QString::number( i ) );
 	}
 	for ( int i = 1; i<=19; i++ ) {
 		m_quantize3Model.addItem( QString::number( i ) );
-		m_noteLen3Model.addItem(  QString::number( i ) );
 	}
 	for ( int i = 1; i<=19; i++ ) {
 		m_quantize4Model.addItem( QString::number( i ) );
-		m_noteLen4Model.addItem(  QString::number( i ) );
 	}
-
-	m_noteLen5Model.addItem( "0.25" );
-	m_noteLen5Model.addItem( "0.5" );
-	m_noteLen5Model.addItem( "0.75" );
-	m_noteLen5Model.addItem( "1.5" );
-	m_noteLen5Model.addItem( "1.75" );
-	m_noteLen5Model.addSeparator();
-	for ( int i = 1; i<=19; i++ ) {
-		m_noteLen5Model.addItem(  QString::number( i ) );
-	}
-
 
 	m_quantize1Model.setValue( m_quantize1Model.findText( "1" ) );
 	m_quantize2Model.setValue( m_quantize2Model.findText( "4" ) );
 	m_quantize3Model.setValue( m_quantize3Model.findText( "4" ) );
 	m_quantize4Model.setValue( m_quantize4Model.findText( "1" ) );
 
-	m_noteLen1Model.setValue(  m_noteLen1Model.findText( "1" ) );
-	m_noteLen2Model.setValue(  m_noteLen2Model.findText( "4" ) );
-	m_noteLen3Model.setValue(  m_noteLen3Model.findText( "4" ) );
-	m_noteLen4Model.setValue(  m_noteLen4Model.findText( "1" ) );
-	m_noteLen5Model.setValue(  m_noteLen5Model.findText( "1" ) );
+	updateNoteLenFromQuantization();
+
+	m_noteLen1Model.setValue( m_noteLen1Model.findText( "1" ) );
+	m_noteLen2Model.setValue( m_noteLen2Model.findText( "4" ) );
+	m_noteLen3Model.setValue( m_noteLen3Model.findText( "4" ) );
+	m_noteLen4Model.setValue( m_noteLen4Model.findText( "1" ) );
 
 	connect( &m_quantize1Model, SIGNAL( dataChanged() ),
 					this, SLOT( quantize123Changed() ) );
@@ -483,20 +473,6 @@ PianoRoll::PianoRoll() :
 					this, SLOT( noteLen123Changed() ) );
 	connect( &m_noteLen4Model, SIGNAL( dataChanged() ),
 					this, SLOT( noteLen123Changed() ) );
-	connect( &m_noteLen5Model, SIGNAL( dataChanged() ),
-					this, SLOT( noteLen123Changed() ) );
-
-//	// Connect noteLen[12345]Model -> quantize123Changed
-//	connect( &m_noteLen1Model, SIGNAL( dataChanged() ),
-//					this, SLOT( quantizeChanged() ) );
-//	connect( &m_noteLen2Model, SIGNAL( dataChanged() ),
-//					this, SLOT( quantizeChanged() ) );
-//	connect( &m_noteLen3Model, SIGNAL( dataChanged() ),
-//					this, SLOT( quantizeChanged() ) );
-//	connect( &m_noteLen4Model, SIGNAL( dataChanged() ),
-//					this, SLOT( quantizeChanged() ) );
-//	connect( &m_noteLen5Model, SIGNAL( dataChanged() ),
-//					this, SLOT( quantizeChanged() ) );
 
 	// Set up note length model
 	m_noteLenModel.addItem( tr( MSG_FREE  ),
@@ -530,7 +506,7 @@ PianoRoll::PianoRoll() :
 		// m_noteLenModel.addSeparator();
 	}
 	m_noteLenModel.addSeparator();
-	// TAG_OTHER
+	// TAG_QUANTIZE_OTHER
 	m_noteLenModel.addItem( OTHER );
 	m_noteLenModel.setValue( c_noteLenIdx_lock2quantize );
 
@@ -585,6 +561,62 @@ PianoRoll::PianoRoll() :
 			this, SLOT( selectRegionFromPixels( int, int ) ) );
 }
 
+
+// Initialize noteLen[12345]Model
+void PianoRoll::updateNoteLenModel( int i1, int i2, int i3, int i4 )
+{
+	m_noteLen1Model.clear();
+	m_noteLen1Model.addItem( " " );
+	for ( int i=1; i<=i1; i++ )
+		m_noteLen1Model.addItem( QString::number( i ) );
+
+	m_noteLen2Model.clear();
+	m_noteLen2Model.addItem( " " );
+	for ( int i=1; i<=i2; i++ )
+		m_noteLen2Model.addItem( QString::number( i ) );
+
+	m_noteLen3Model.clear();
+	m_noteLen3Model.addItem( " " );
+	for ( int i=1; i<=i3; i++ )
+		m_noteLen3Model.addItem( QString::number( i ) );
+
+	m_noteLen4Model.clear();
+	m_noteLen4Model.addItem( " " );
+	for ( int i=1; i<=i4; i++ )
+		m_noteLen4Model.addItem( QString::number( i ) );
+
+//	m_noteLen1Model.addItem(  "1/3" );
+//	m_noteLen1Model.addItem(  "1/2" );
+//	for ( int i = 1; i<=19; i++ ) {
+//		m_noteLen1Model.addItem(  QString::number( i ) );
+//	}
+//	for ( int i = 1; i<=19; i++ ) {
+//		m_noteLen2Model.addItem(  QString::number( i ) );
+//	}
+//	for ( int i = 1; i<=19; i++ ) {
+//		m_noteLen3Model.addItem(  QString::number( i ) );
+//	}
+//	for ( int i = 1; i<=19; i++ ) {
+//		m_noteLen4Model.addItem(  QString::number( i ) );
+//	}
+//
+//	m_noteLen5Model.addItem( "0.25" );
+//	m_noteLen5Model.addItem( "0.5" );
+//	m_noteLen5Model.addItem( "0.75" );
+//	m_noteLen5Model.addItem( "1.5" );
+//	m_noteLen5Model.addItem( "1.75" );
+//	m_noteLen5Model.addSeparator();
+//
+//	for ( int i = 1; i<=19; i++ ) {
+//		m_noteLen5Model.addItem(  QString::number( i ) );
+//	}
+//
+//	m_noteLen1Model.setValue( m_noteLen1Model.findText( "1" ) );
+//	m_noteLen2Model.setValue( m_noteLen2Model.findText( "4" ) );
+//	m_noteLen3Model.setValue( m_noteLen3Model.findText( "4" ) );
+//	m_noteLen4Model.setValue( m_noteLen4Model.findText( "1" ) );
+//	m_noteLen5Model.setValue( m_noteLen5Model.findText( "1" ) );
+}
 
 
 void PianoRoll::reset()
@@ -2742,10 +2774,21 @@ int PianoRoll::xCoordOfTick(int tick )
 }
 
 inline double text1ToDouble( QString text1 ) {
-	double d = text1.contains( "/" ) ? 
-		1.0f / text1.mid( text1.indexOf( "/" ) + 1 ).toDouble() : 
-		text1.toDouble();
-	return d == 0.0 ? 1.0 : d;
+	double result;
+	if ( text1.contains( "/" ) )
+	{
+		double numer = text1.mid( 0, text1.indexOf( "/" )     ).toDouble();
+		double denom = text1.mid(    text1.indexOf( "/" ) + 1 ).toDouble();
+		if ( abs( denom ) < 0.02 )
+			result = 0;
+		else
+			result = numer / denom;
+	}
+	else
+	{
+		result = text1.toDouble();
+	}
+	return result == 0.0 ? 1.0 : result;
 }
 
 void PianoRoll::paintEvent(QPaintEvent * pe )
@@ -4083,55 +4126,94 @@ void PianoRoll::zoomingChanged()
 }
 
 
+#define SET_QUANTIZE1234_BY_STR(p1,p2,p3,p4)\
+		m_quantize1Model.setValue( m_quantize1Model.findText( p1 ) );\
+		m_quantize2Model.setValue( m_quantize2Model.findText( p2 ) );\
+		m_quantize3Model.setValue( m_quantize3Model.findText( p3 ) );\
+		m_quantize4Model.setValue( m_quantize4Model.findText( p4 ) );\
+		updateNoteLenFromQuantization();
+
+#define SET_NOTELEN1234_BY_STR(p1,p2,p3,p4)\
+		m_noteLen1Model.setValue( m_noteLen1Model.findText( p1 ) );\
+		m_noteLen2Model.setValue( m_noteLen2Model.findText( p2 ) );\
+		m_noteLen3Model.setValue( m_noteLen3Model.findText( p3 ) );\
+		m_noteLen4Model.setValue( m_noteLen4Model.findText( p4 ) );
+
+#define SET_QUANTIZE1234(p1,p2,p3,p4)\
+		m_quantize1Model.setValue( p1 );\
+		m_quantize2Model.setValue( p2 );\
+		m_quantize3Model.setValue( p3 );\
+		m_quantize4Model.setValue( p4 );\
+		updateNoteLenFromQuantization();
+
+#define SET_NOTELEN1234(p1,p2,p3,p4)\
+		m_noteLen1Model.setValue( p1 );\
+		m_noteLen2Model.setValue( p2 );\
+		m_noteLen3Model.setValue( p3 );\
+		m_noteLen4Model.setValue( p4 );
 
 bool noteLenIsChanging = false;
 bool quantizeIsChanging = false;
 
 void PianoRoll::quantizeChanged()
 {
-	if ( ! quantizeIsChanging ) {
+	if ( ! quantizeIsChanging )
+	{
 		quantizeIsChanging = true;
 
-		if ( m_quantizeModel.value() == c_quantizeIdx_lock ) {
-			if ( m_noteLenModel.value() < c_noteLenIdx_ratioFrom ) {
+		if ( m_quantizeModel.value() == c_quantizeIdx_lock )
+		{
+			if ( m_noteLenModel.value() < c_noteLenIdx_ratioFrom )
+			{
 				m_quantize1Model.setValue( -1 );
 				m_quantize2Model.setValue( -1 );
 				m_quantize3Model.setValue( -1 );
 				m_quantize4Model.setValue( -1 );
-			} else {
+			}
+			else
+			{
 				m_quantize1Model.setValue( m_noteLen1Model.value() );
 				m_quantize2Model.setValue( m_noteLen2Model.value() );
 				m_quantize3Model.setValue( m_noteLen3Model.value() );
 				m_quantize4Model.setValue( m_noteLen4Model.value() );
 			}
+		}
+		else if ( m_quantizeModel.value() == m_quantizeModel.size()-1 )
+		{
+			if ( m_quantizeModelState_other.isEmpty() )
+			{
+				// Ignore.
+			}
+			else
+			{
+				SET_QUANTIZE1234_BY_STR(
+						m_quantizeModelState_other[0],
+						m_quantizeModelState_other[1],
+						m_quantizeModelState_other[2],
+						m_quantizeModelState_other[3] )
+			}
 		} else {
-
-#define SET_QUANTIZE1234_COMBO(p1,p2,p3,p4)\
-		m_quantize1Model.setValue( m_quantize1Model.findText( p1 ) );\
-		m_quantize2Model.setValue( m_quantize2Model.findText( p2 ) );\
-		m_quantize3Model.setValue( m_quantize3Model.findText( p3 ) );\
-		m_quantize4Model.setValue( m_quantize4Model.findText( p4 ) );
 
 			QString text = m_quantizeModel.currentText();
 			int i = text.right( text.length() - 2 ).toInt();
 			if ( i == 192 ) {
 				// 192 %3 == 0 and 192 % 4 == 0 ,too
-				SET_QUANTIZE1234_COMBO( "1","4","4","12" );
+				SET_QUANTIZE1234_BY_STR( "1","4","4","12" );
 			} else if ( i % 3 == 0 ) {
 				// IMHO if you say 1/3 or 1/6, you usually want it to be 3 time. 
 				// Otherwise you usually consider it to be 4 time swing.
 				if ( i ==3 || i == 6 ) {
-					SET_QUANTIZE1234_COMBO( "1","3", QString::number( i / 3 ), "1" );
+					SET_QUANTIZE1234_BY_STR( "1","3", QString::number( i / 3 ), "1" );
 				} else {
-					SET_QUANTIZE1234_COMBO( "1","4", QString::number( i / 4 ),"1" );
+					SET_QUANTIZE1234_BY_STR( "1","4", QString::number( i / 4 ),"1" );
 				}
 			} else {
 				if ( i ==1 || i == 2 ) {
-					SET_QUANTIZE1234_COMBO( "1",QString::number( i ), "1" ,"1" );
+					SET_QUANTIZE1234_BY_STR( "1",QString::number( i ), "1" ,"1" );
 				} else if ( i <= 16 ) {
-					SET_QUANTIZE1234_COMBO( "1","4", QString::number( i / 4 ),"1" );
+					SET_QUANTIZE1234_BY_STR( "1","4", QString::number( i / 4 ),"1" );
 				} else {
-					SET_QUANTIZE1234_COMBO( "1","4", "4", QString::number( i / 16 ) );
+					SET_QUANTIZE1234_BY_STR( "1","4", "4", QString::number( i / 16 ) );
 				}
 			}
 		}
@@ -4144,6 +4226,7 @@ void PianoRoll::quantizeChanged()
 	update();
 }
 
+
 void PianoRoll::quantize123Changed()
 {
 	if ( ! quantizeIsChanging ) {
@@ -4154,23 +4237,31 @@ void PianoRoll::quantize123Changed()
 		QString text3 = m_quantize3Model.currentText();
 		QString text4 = m_quantize4Model.currentText();
 
-		int i = (int)( text2.toInt() * text3.toInt() * text4.toInt() / text1ToDouble( text1 ) );
+		double numer = text1ToDouble( text1 );
+		double denom = text2.toDouble() * text3.toDouble() * text4.toDouble();
+		QString ratioString = QString::number( numer ) + "/" + QString::number( denom );
 
-		QString ratioString = "1/" + QString::number( i );
 		int idx = m_quantizeModel.findText( ratioString );
 		if ( 0<=idx )
 		{
-			int lastIndex = m_quantizeModel.size() -1;
-			m_quantizeModel.setItemText( lastIndex, OTHER );
+			// TAG_QUANTIZE_OTHER
+			// int lastIndex = m_quantizeModel.size() -1;
+			// m_quantizeModel.setItemText( lastIndex, OTHER );
 			m_quantizeModel.setValue( idx );
 		}
 		else
 		{
-			// TAG_OTHER
+			// TAG_QUANTIZE_OTHER
 			int lastIndex = m_quantizeModel.size() -1;
 			m_quantizeModel.setItemText( lastIndex, ratioString );
-			// TODO
 			m_quantizeModel.setValue( lastIndex );
+
+			// Store the current state of the set of ComboBox'es
+			m_quantizeModelState_other.clear();
+			m_quantizeModelState_other.append( text1 );
+			m_quantizeModelState_other.append( text2 );
+			m_quantizeModelState_other.append( text3 );
+			m_quantizeModelState_other.append( text4 );
 		}
 
 		updateNoteLenFromQuantization();
@@ -4184,156 +4275,23 @@ void PianoRoll::quantize123Changed()
 // This function is called from both quantize123Changed() and quantizeChanged()
 void PianoRoll::updateNoteLenFromQuantization()
 {
-	// Displaying current note length if it is in lock mode
-	if ( m_noteLenModel.value() == c_noteLenIdx_lock2quantize )
+	// if ( ! noteLenChanged )
 	{
 		// Supress update noteLenComboBox
-		noteLenIsChanging  = true;
+		// noteLenIsChanging  = true;
 
-		// Update noteLen[1234]ComboBox'es to be same to corresponding quontizeComboBox'es
-		if ( m_quantize1Model.value() != m_noteLen1Model.value() )
-			m_noteLen1Model.setValue( m_quantize1Model.value() );
-		if ( m_quantize2Model.value() != m_noteLen2Model.value() )
-			m_noteLen2Model.setValue( m_quantize2Model.value() );
-		if ( m_quantize3Model.value() != m_noteLen3Model.value() )
-			m_noteLen3Model.setValue( m_quantize3Model.value() );
-		if ( m_quantize4Model.value() != m_noteLen4Model.value() )
-			m_noteLen4Model.setValue( m_quantize4Model.value() );
+		updateNoteLenModel(
+				4,
+				m_quantize2Model.currentText().toInt() * 2,
+				m_quantize3Model.currentText().toInt() * 2,
+				m_quantize4Model.currentText().toInt() * 2
+			);
 
-		noteLenIsChanging  = false;
+		// noteLenIsChanging  = false;
 	}
 }
 
 
-
-struct LookupNoteLengh_comparator{
-	int preferableBeatNumber;
-	LookupNoteLengh_comparator( int preferableBeatNumber ) : preferableBeatNumber( preferableBeatNumber ){}
-	
-	bool operator() ( std::vector<int> i,  std::vector<int> j ) const
-	{
-		// empty list ( which is supposed to be absent here ) always lose.
-		if ( i.empty() != j.empty() )
-			return j.empty();
-
-		//// If both vectors are empty, they are equal. That is, false.
-		//if ( i.empty() == j.empty() )
-		//	return false;
-
-		// the one has less number of bars wins than the others.
-		if ( i[1] != j[1] ) // bar
-			return i[1] < j[1];
-
-		// subdiv should be small as possible
-		if ( i[4] != j[4] ) // subdiv
-			return i[4] < j[4];
-
-		// preferable beat number ( tipically 4 ) beat wins 
-		if ( i[2] != j[2] )
-		{
-			if ( i[2] == preferableBeatNumber )
-				return true;
-		}
-
-		{
-			struct {
-				int operator() ( std::vector<int>i ) const 
-				{
-					return
-						// [2]=beat, [3]=div [4]=subdiv [5]=len
-						abs( i[2] - i[3] ) +
-						abs( i[3] - i[4] ) +
-						abs( i[4] - i[5] ) +
-						abs( i[5] - i[2] ) +
-						abs( i[2] - i[4] ) +
-						abs( i[3] - i[5] )
-					;
-				}
-			} calcScore1;
-
-			int ii = calcScore1( i );
-			int jj = calcScore1( j );
-
-			// beat number and div number should be close as possible.
-			// for example 4&3 should win 5&1. 
-			if ( ii != jj )
-				return ii < jj;
-		}
-
-
-		// beat should be as large as possible
-		if ( i[2] != j[2] ) // beat
-			return i[2] > j[2];
-
-		if ( i[3] != j[3] ) // div
-			return i[3] < j[3];
-
-
-		if ( i[5] != j[5] ) // notelen
-			return i[5] < j[5];
-
-		// The values i and j are totally equal. That is, false.
-		return false;
-	}
-};
-
-std::vector<int> lookupNoteLength( int barLen0, int noteLen0, int preferableBeatNumber )
-{
-	// Search the appropriate bar/beat/div/subdiv.
-	const int c_noteLenThreshold = 1;
-	const double dBarLen0 = barLen0;
-
-	int ctr = 0;
-
-	std::vector<std::vector<int> > foundRatios;
-
-	for ( int i1=1; i1<5; i1++ ) // bar
-	{
-		for ( int i2=1; i2<19; i2++ ) //beat
-		{
-			// // Think note lengh such as 2/4 as 1/2,  is not intuitive.
-			// if ( i2 ==1 || i2 == 2 ) 
-			// 	continue;
-
-			for ( int i3=1; i3<19; i3++ ) // div
-			{
-				for ( int i4=1; i4<19; i4++ ) // subdiv
-				{
-					for ( int i5=1; i5<19; i5++ ) // len
-					{
-						ctr++;
-						int noteLen1 = ( ( ( dBarLen0 * i1 ) / i2 / i3 / i4 ) * i5 );
-						if ( abs( noteLen1 - noteLen0 ) < c_noteLenThreshold )
-						{
-							std::vector<int> foundVector = { 0, i1,i2,i3,i4,i5 };
-							foundRatios.push_back( foundVector );
-						}
-						else if ( noteLen0 < noteLen1 )
-							continue;
-					}
-				}
-			}
-		}
-	}
-
-	printf ( "lookupNoteLength:%d\n", ctr );
-	printf ( "foundRatios.size():%d\n", foundRatios.size() );
-
-	if ( foundRatios.empty() )
-		return std::vector<int>();
-
-	LookupNoteLengh_comparator lookupNoteLength_comparator( preferableBeatNumber );
-	std::sort( foundRatios.begin(), foundRatios.end(), lookupNoteLength_comparator );
-
-	return * foundRatios.begin();
-}
-
-#define SET_NOTELEN12345_COMBO(p1,p2,p3,p4,p5)\
-		m_noteLen1Model.setValue( m_noteLen1Model.findText( p1 ) );\
-		m_noteLen2Model.setValue( m_noteLen2Model.findText( p2 ) );\
-		m_noteLen3Model.setValue( m_noteLen3Model.findText( p3 ) );\
-		m_noteLen4Model.setValue( m_noteLen4Model.findText( p4 ) );\
-		m_noteLen5Model.setValue( m_noteLen5Model.findText( p5 ) );
 
 void PianoRoll::updateNoteLenFromSelectedNote()
 {
@@ -4347,29 +4305,29 @@ void PianoRoll::updateNoteLenFromSelectedNote()
 			if ( preferableBeatNumber < 1 )
 				preferableBeatNumber = 4;
 
-			std::vector<int> nnlRatio = lookupNoteLength( DefaultTicksPerTact, 
-					newNoteLen().getTicks(),
-					preferableBeatNumber );
+			//std::vector<int> nnlRatio = lookupNoteLength( DefaultTicksPerTact, 
+			//		newNoteLen().getTicks(),
+			//		preferableBeatNumber );
 
-			if ( ! nnlRatio.empty() )
-			{
-				SET_NOTELEN12345_COMBO( 
-						QString::number( nnlRatio[1] ) ,
-						QString::number( nnlRatio[2] ) ,
-						QString::number( nnlRatio[3] ) ,
-						QString::number( nnlRatio[4] ) ,
-						QString::number( nnlRatio[5] ) 
-						);
-			}
-			else
-			{
-				// TODO
-				m_noteLen1Model.setValue( -1 );
-				m_noteLen2Model.setValue( -1 );
-				m_noteLen3Model.setValue( -1 );
-				m_noteLen4Model.setValue( -1 );
-				m_noteLen5Model.setValue( -1 );
-			}
+//			if ( ! nnlRatio.empty() )
+//			{
+//				SET_NOTELEN1234_BY_STR( 
+//						QString::number( nnlRatio[1] ) ,
+//						QString::number( nnlRatio[2] ) ,
+//						QString::number( nnlRatio[3] ) ,
+//						QString::number( nnlRatio[4] ) ,
+//						QString::number( nnlRatio[5] ) 
+//						);
+//			}
+//			else
+//			{
+//				// TODO
+//				m_noteLen1Model.setValue( -1 );
+//				m_noteLen2Model.setValue( -1 );
+//				m_noteLen3Model.setValue( -1 );
+//				m_noteLen4Model.setValue( -1 );
+//				m_noteLen5Model.setValue( -1 );
+//			}
 
 			noteLenIsChanging = false;
 		}
@@ -4381,59 +4339,79 @@ void PianoRoll::noteLenChanged()
 	if ( ! noteLenIsChanging ) {
 		noteLenIsChanging = true;
 
-
-		if ( m_noteLenModel.value() < c_noteLenIdx_ratioFrom )
+		if ( m_noteLenModel.value() == c_noteLenIdx_lastNote )
 		{
-			if ( m_noteLenModel.value() == c_noteLenIdx_lastNote )
-			{
-				updateNoteLenFromSelectedNote();
-			}
-			else if ( m_noteLenModel.value() == c_noteLenIdx_lock2quantize )
-			{
-				updateNoteLenFromQuantization();
-			}
-			else
-			{
-				m_noteLen1Model.setValue( -1 );
-				m_noteLen2Model.setValue( -1 );
-				m_noteLen3Model.setValue( -1 );
-				m_noteLen4Model.setValue( -1 );
-				m_noteLen5Model.setValue( -1 );
-			}
+			updateNoteLenFromSelectedNote();
+		}
+		else if ( m_noteLenModel.value() == c_noteLenIdx_lock2quantize )
+		{
+			updateNoteLenFromQuantization();
 		}
 		else
 		{
 			QString text = m_noteLenModel.currentText();
 			int i = text.right( text.length() - 2 ).toInt();
 
-			if ( i == 192 ) {
-				// 192 %3 == 0 and 192 % 4 == 0 ,too
-				// But this will never happen.
-				SET_NOTELEN12345_COMBO( "1","4","4","12","1" );
+			switch ( i )
+			{
+				case 1:
+					SET_QUANTIZE1234_BY_STR( "1","4","4","1" );
+					SET_NOTELEN1234_BY_STR(  "1"," "," "," " );
+					break;
+				case 2:
+					SET_QUANTIZE1234_BY_STR( "1","4","4","1" );
+					SET_NOTELEN1234_BY_STR(  " ","2"," "," " );
+					break;
+				case 4:
+					SET_QUANTIZE1234_BY_STR( "1","4","4","1" );
+					SET_NOTELEN1234_BY_STR(  " ","1"," "," " );
+					break;
+				case 8:
+					SET_QUANTIZE1234_BY_STR( "1","4","4","1" );
+					SET_NOTELEN1234_BY_STR(  " "," ","2"," " );
+					break;
+				case 16:
+					SET_QUANTIZE1234_BY_STR( "1","4","4","1" );
+					SET_NOTELEN1234_BY_STR(  " "," ","1"," " );
+					break;
+				case 32:
+					SET_QUANTIZE1234_BY_STR( "1","4","4","2" );
+					SET_NOTELEN1234_BY_STR(  " "," "," ","1" );
+					break;
+				case 192:
+					SET_QUANTIZE1234_BY_STR( "1","4","4","12" );
+					SET_NOTELEN1234_BY_STR(  " "," "," ", "1" );
+					break;
 
-			} else if ( i % 3 == 0 ) {
-				// IMHO if you say 1/3 or 1/6, you usually want it to be 3 time. 
-				// Otherwise you usually consider it to be 4 time swing.
-				if ( i ==3 || i == 6 ) {
-					SET_NOTELEN12345_COMBO( "1","3", QString::number( i / 3 ), "1", "1" );
-				} else {
-					SET_NOTELEN12345_COMBO( "1","4", QString::number( i / 4 ), "1", "1" );
-				}
-			} else {
-				if ( i ==1 || i == 2 ) {
-					SET_NOTELEN12345_COMBO( "1",QString::number( i ), "1" ,"1", "1" );
-				} else if ( i <= 16 ) {
-					SET_NOTELEN12345_COMBO( "1","4", QString::number( i / 4 ),"1", "1" );
-				} else {
-					SET_NOTELEN12345_COMBO( "1","4", "4", QString::number( i / 16 ), "1" );
-				}
+				case 3:
+					SET_QUANTIZE1234_BY_STR( "1","3","4","1" );
+					SET_NOTELEN1234_BY_STR(  " ","1"," "," " );
+					break;
+				case 6:
+					SET_QUANTIZE1234_BY_STR( "1","3","4","1" );
+					SET_NOTELEN1234_BY_STR(  " "," ","2"," " );
+					break;
+				case 12:
+					SET_QUANTIZE1234_BY_STR( "1","3","4","1" );
+					SET_NOTELEN1234_BY_STR(  " "," ","1"," " );
+					break;
+				case 24:
+					SET_QUANTIZE1234_BY_STR( "1","3","4","2" );
+					SET_NOTELEN1234_BY_STR(  " "," "," ","1" );
+					break;
+				case 48:
+					SET_QUANTIZE1234_BY_STR( "1","3","4","4" );
+					SET_NOTELEN1234_BY_STR(  " "," "," ","1" );
+					break;
+				default :
+					SET_QUANTIZE1234_BY_STR( "1","4","4","1" );
+					SET_NOTELEN1234_BY_STR(  " ","1"," "," " );
 			}
 		}
 
 		noteLenIsChanging = false;
 	}
 }
-#undef SET_NOTELEN12345_COMBO
 
 void PianoRoll::noteLen123Changed()
 {
@@ -4453,8 +4431,6 @@ void PianoRoll::noteLen123Changed()
 					m_noteLen3Model.setValue( m_noteLen3Model.findText( "1" ) );
 				if ( m_noteLen4Model.value() < 0 )
 					m_noteLen4Model.setValue( m_noteLen4Model.findText( "1" ) );
-				if ( m_noteLen5Model.value() < 0 )
-					m_noteLen5Model.setValue( m_noteLen5Model.findText( "1" ) );
 			} else {
 				// If noteLen[1234]ComboBox is touched, noteLenComboBox must be
 				// set to any ratio other than special value.
@@ -4466,8 +4442,6 @@ void PianoRoll::noteLen123Changed()
 					m_noteLen3Model.setValue( m_quantize3Model.value() );
 				if ( m_noteLen4Model.value() < 0 )
 					m_noteLen4Model.setValue( m_quantize4Model.value() );
-				if ( m_noteLen5Model.value() < 0 )
-					m_noteLen5Model.setValue( m_noteLen5Model.findText( "1" ) );
 			}
 		}
 
@@ -4477,7 +4451,11 @@ void PianoRoll::noteLen123Changed()
 			QString text2 = m_noteLen2Model.currentText();
 			QString text3 = m_noteLen3Model.currentText();
 			QString text4 = m_noteLen4Model.currentText();
-			QString text5 = m_noteLen5Model.currentText();
+
+			int i1 = text1 == " " ? 0 : text1.toInt();
+			int i2 = text2 == " " ? 0 : text2.toInt();
+			int i3 = text3 == " " ? 0 : text3.toInt();
+			int i4 = text4 == " " ? 0 : text4.toInt();
 
 			int i = 1 * text2.toInt() * text3.toInt() * text4.toInt();
 			if ( text1.contains( "/" ) ) {
@@ -4486,19 +4464,6 @@ void PianoRoll::noteLen123Changed()
 			} else
 				i *= text1.toInt();
 
-
-			QString ratioString = text5 + "/" + QString::number( i );
-			int idx = m_noteLenModel.findText( ratioString );
-			if ( 0<=idx )
-			{
-				m_noteLenModel.setValue( idx );
-			}
-			else
-			{
-				int lastIndex = m_noteLenModel.size() -1;
-				m_noteLenModel.setItemText( lastIndex, ratioString );
-				m_noteLenModel.setValue( lastIndex );
-			}
 		}
 
 		{
@@ -4623,20 +4588,37 @@ MidiTime PianoRoll::newNoteLen() const
 		return quantization();
 	}
 
-	// FIXME 
-	QString text1 = m_noteLen1Model.currentText();
-	QString text2 = m_noteLen2Model.currentText();
-	QString text3 = m_noteLen3Model.currentText();
-	QString text4 = m_noteLen4Model.currentText();
-	QString text5 = m_noteLen5Model.currentText();
+	QString qtext1 = m_quantize1Model.currentText();
+	QString qtext2 = m_quantize2Model.currentText();
+	QString qtext3 = m_quantize3Model.currentText();
+	QString qtext4 = m_quantize4Model.currentText();
 
-	double i1 = text1ToDouble( text1 );
-	double i2 = text2.toDouble();
-	double i3 = text3.toDouble();
-	double i4 = text4.toDouble();
-	double i5 = text5.toDouble();
+	double q1 = text1ToDouble( qtext1 );
+	double q2 = qtext2.toDouble();
+	double q3 = qtext3.toDouble();
+	double q4 = qtext4.toDouble();
 
-	return ( DefaultTicksPerTact * i1 ) / i2 / i3 / i4 * i5;
+	QString ntext1 = m_noteLen1Model.currentText();
+	QString ntext2 = m_noteLen2Model.currentText();
+	QString ntext3 = m_noteLen3Model.currentText();
+	QString ntext4 = m_noteLen4Model.currentText();
+
+	int n1 = ntext1.toInt();
+	int n2 = ntext2.toInt();
+	int n3 = ntext3.toInt();
+	int n4 = ntext4.toInt();
+
+	// BTW, If you break the line after return statement,
+	// you will fuck yourself when you write JavaScript. 
+	// That's okay it's C++. 
+	return 
+		(
+			( ((double)DefaultTicksPerTact) * q1 /  1 ) * n1 +
+			( ((double)DefaultTicksPerTact) * q1 / q2 ) * n2 +
+			( ((double)DefaultTicksPerTact) * q1 / q3 ) * n3 +
+			( ((double)DefaultTicksPerTact) * q1 / q4 ) * n4 +
+			0
+		);
 
 	// QString text = m_noteLenModel.currentText();
 	// return DefaultTicksPerTact / text.right( text.length() - 2 ).toInt();
@@ -4970,15 +4952,6 @@ PianoRollWindow::PianoRollWindow() :
 		m_noteLen4ComboBox->setModel( &m_editor->m_noteLen4Model );
 		m_noteLen4ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
 
-		QLabel * noteLen5_lbl = new QLabel( m_toolBar );
-		noteLen5_lbl->setText( MSG_LEN );
-		QFont nf5( "Arial", QUANTIZE_CAPTION_FONT_SIZE, QFont::Bold);
-		noteLen5_lbl->setFont( nf5 );
-
-		m_noteLen5ComboBox = new ComboBox2( m_toolBar );
-		m_noteLen5ComboBox->setModel( &m_editor->m_noteLen5Model );
-		m_noteLen5ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
-
 
 		zoomAndNotesToolBar->addSeparator();
 		zoomAndNotesToolBar->addWidget( note_len_lbl );
@@ -4992,8 +4965,6 @@ PianoRollWindow::PianoRollWindow() :
 		zoomAndNotesToolBar->addWidget( m_noteLen3ComboBox );
 		zoomAndNotesToolBar->addWidget( noteLen4_lbl );
 		zoomAndNotesToolBar->addWidget( m_noteLen4ComboBox );
-		zoomAndNotesToolBar->addWidget( noteLen5_lbl );
-		zoomAndNotesToolBar->addWidget( m_noteLen5ComboBox );
 	}
 
 

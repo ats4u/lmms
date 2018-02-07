@@ -284,6 +284,7 @@ private:
 
 	void updateNoteLenFromQuantization();
 	void updateNoteLenFromSelectedNote();
+	void updateNoteLenModel( int i1, int i2, int i3, int i4 );
 	
 
 	static const int cm_scrollAmtHoriz = 10;
@@ -316,9 +317,10 @@ private:
 	ComboBoxModel2 m_noteLen2Model;
 	ComboBoxModel2 m_noteLen3Model;
 	ComboBoxModel2 m_noteLen4Model;
-	ComboBoxModel2 m_noteLen5Model;
 	ComboBoxModel2 m_scaleModel;
 	ComboBoxModel2 m_chordModel;
+
+	QVector<QString> m_quantizeModelState_other;
 
 	static const QVector<double> m_zoomLevels;
 
