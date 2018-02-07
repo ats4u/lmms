@@ -4239,7 +4239,7 @@ void PianoRoll::quantize123Changed()
 
 		double numer = text1ToDouble( text1 );
 		double denom = text2.toDouble() * text3.toDouble() * text4.toDouble();
-		QString ratioString = QString::number( numer ) + "/" + QString::number( denom );
+		QString ratioString = QString::number( numer, 'f',2 ) + "/" + QString::number( denom );
 
 		int idx = m_quantizeModel.findText( ratioString );
 		if ( 0<=idx )
