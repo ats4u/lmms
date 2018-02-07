@@ -4120,8 +4120,6 @@ int calcNoteLen(
 		int n4     // a multiplier as subdiv 
 		)
 {
-	// BTW, If you break the line after return statement in JavaScript,
-	// you will fuck yourself. That's okay because it's C++. 
 	return 
 		(              ( ((double)ticksPerTact) * q1 /  1 )                * n1 ) +
 		( q2 < 2 ? 0 : ( ((double)ticksPerTact) * q1 /  1 / q2 )           * n2 ) +
@@ -4144,18 +4142,6 @@ int calcNoteLen(
 		m_noteLen3Model.setValue( m_noteLen3Model.findText( p3 ) );\
 		m_noteLen4Model.setValue( m_noteLen4Model.findText( p4 ) );
 
-#define SET_QUANTIZE1234(p1,p2,p3,p4)\
-		m_quantize1Model.setValue( p1 );\
-		m_quantize2Model.setValue( p2 );\
-		m_quantize3Model.setValue( p3 );\
-		m_quantize4Model.setValue( p4 );\
-		updateNoteLenFromQuantization();
-
-#define SET_NOTELEN1234(p1,p2,p3,p4)\
-		m_noteLen1Model.setValue( p1 );\
-		m_noteLen2Model.setValue( p2 );\
-		m_noteLen3Model.setValue( p3 );\
-		m_noteLen4Model.setValue( p4 );
 
 bool noteLenIsChanging = false;
 bool quantizeIsChanging = false;
@@ -4274,8 +4260,6 @@ void PianoRoll::quantize123Changed()
 		if ( 0<=idx )
 		{
 			// TAG_QUANTIZE_OTHER
-			// int lastIndex = m_quantizeModel.size() -1;
-			// m_quantizeModel.setItemText( lastIndex, OTHER );
 			m_quantizeModel.setValue( idx );
 		}
 		else
@@ -4355,126 +4339,7 @@ void PianoRoll::updateNoteLenFromQuantization()
 		);
 }
 
-
-struct LookupNoteLengh_comparator{
-	int preferableBeatNumber;
-	LookupNoteLengh_comparator( int preferableBeatNumber ) : preferableBeatNumber( preferableBeatNumber ){}
-	
-	bool operator() ( std::vector<int> i,  std::vector<int> j ) const
-	{
-		// empty list ( which is supposed to be absent here ) always lose.
-		if ( i.empty() != j.empty() )
-			return j.empty();
-
-		//// If both vectors are empty, they are equal. That is, false.
-		//if ( i.empty() == j.empty() )
-		//	return false;
-
-		// the one has less number of bars wins than the others.
-		if ( i[1] != j[1] ) // bar
-			return i[1] < j[1];
-
-		// subdiv should be small as possible
-		if ( i[4] != j[4] ) // subdiv
-			return i[4] < j[4];
-
-		// preferable beat number ( tipically 4 ) beat wins 
-		if ( i[2] != j[2] )
-		{
-			if ( i[2] == preferableBeatNumber )
-				return true;
-		}
-
-		{
-			struct {
-				int operator() ( std::vector<int>i ) const 
-				{
-					return
-						// [2]=beat, [3]=div [4]=subdiv [5]=len
-						abs( i[2] - i[3] ) +
-						abs( i[3] - i[4] ) +
-						abs( i[4] - i[5] ) +
-						abs( i[5] - i[2] ) +
-						abs( i[2] - i[4] ) +
-						abs( i[3] - i[5] )
-					;
-				}
-			} calcScore1;
-
-			int ii = calcScore1( i );
-			int jj = calcScore1( j );
-
-			// beat number and div number should be close as possible.
-			// for example 4&3 should win 5&1. 
-			if ( ii != jj )
-				return ii < jj;
-		}
-
-
-		// beat should be as large as possible
-		if ( i[2] != j[2] ) // beat
-			return i[2] > j[2];
-
-		if ( i[3] != j[3] ) // div
-			return i[3] < j[3];
-
-
-		if ( i[5] != j[5] ) // notelen
-			return i[5] < j[5];
-
-		// The values i and j are totally equal. That is, false.
-		return false;
-	}
-};
-
-std::vector<int> lookupNoteLength( int barLen0, int noteLen0, int preferableBeatNumber )
-{
-	// Search the appropriate bar/beat/div/subdiv.
-	const int c_noteLenThreshold = 1;
-	const double dBarLen0 = barLen0;
-
-	int ctr = 0;
-
-	std::vector<std::vector<int> > foundRatios;
-
-	for ( int i1=0; i1<19; i1++ ) // bar
-	{
-		for ( int i2=0; i2<19; i2++ ) //beat
-		{
-			for ( int i3=0; i3<19; i3++ ) // div
-			{
-				for ( int i4=0; i4<19; i4++ ) // subdiv
-				{
-					ctr++;
-					int noteLen1 = ( ( ( dBarLen0 * i1 ) / i2 / i3 / i4 )  );
-
-
-					if ( abs( noteLen1 - noteLen0 ) < c_noteLenThreshold )
-					{
-						std::vector<int> foundVector = { 0, i1,i2,i3,i4 };
-						foundRatios.push_back( foundVector );
-					}
-					else if ( noteLen0 < noteLen1 )
-						continue;
-				}
-			}
-		}
-	}
-
-	// printf ( "lookupNoteLength:%d\n", ctr );
-	// printf ( "foundRatios.size():%d\n", foundRatios.size() );
-
-	if ( foundRatios.empty() )
-		return std::vector<int>();
-
-	LookupNoteLengh_comparator lookupNoteLength_comparator( preferableBeatNumber );
-	std::sort( foundRatios.begin(), foundRatios.end(), lookupNoteLength_comparator );
-
-	return * foundRatios.begin();
-}
-
-
-std::vector<int> lookupNoteLength2( int barLen0, int noteLen0, 
+std::vector<int> lookupNoteLength( int barLen0, int noteLen0, 
 		double q1, 
 		double q2, 
 		double q3, 
@@ -4522,7 +4387,7 @@ void PianoRoll::updateNoteLenFromSelectedNote()
 			if ( preferableBeatNumber < 1 )
 				preferableBeatNumber = 4;
 
-			std::vector<int> nnlRatio = lookupNoteLength2(
+			std::vector<int> nnlRatio = lookupNoteLength(
 				DefaultTicksPerTact, 
 				newNoteLen().getTicks(),
 				text1ToDouble(   m_quantize1Model.currentText() ),
@@ -4713,34 +4578,6 @@ void PianoRoll::noteLen123Changed()
 			m_noteLenModelState_other.append( m_noteLen4Model.currentText() );
 		}
 
-
-//		if ( m_noteLenModel.value() < c_noteLenIdx_ratioFrom )
-//		{
-//			if ( m_quantizeModel.value() == c_quantizeIdx_lock )
-//			{
-//				if ( m_noteLen1Model.value() < 0 )
-//					m_noteLen1Model.setValue( m_noteLen1Model.findText( "1" ) );
-//				if ( m_noteLen2Model.value() < 0 )
-//					m_noteLen2Model.setValue( m_noteLen2Model.findText( "4" ) );
-//				if ( m_noteLen3Model.value() < 0 )
-//					m_noteLen3Model.setValue( m_noteLen3Model.findText( "1" ) );
-//				if ( m_noteLen4Model.value() < 0 )
-//					m_noteLen4Model.setValue( m_noteLen4Model.findText( "1" ) );
-//			} else {
-//				// If noteLen[1234]ComboBox is touched, noteLenComboBox must be
-//				// set to any ratio other than special value.
-//				if ( m_noteLen1Model.value() < 0 )
-//					m_noteLen1Model.setValue( m_quantize1Model.value() );
-//				if ( m_noteLen2Model.value() < 0 )
-//					m_noteLen2Model.setValue( m_quantize2Model.value() );
-//				if ( m_noteLen3Model.value() < 0 )
-//					m_noteLen3Model.setValue( m_quantize3Model.value() );
-//				if ( m_noteLen4Model.value() < 0 )
-//					m_noteLen4Model.setValue( m_quantize4Model.value() );
-//			}
-//		}
-
-
 		noteLenIsChanging = false;
 	}
 
@@ -4762,19 +4599,15 @@ int PianoRoll::quantization() const
 		}
 	}
 
-	// QString text = m_quantizeModel.currentText();
-	// return DefaultTicksPerTact / text.right( text.length() - 2 ).toInt();
-
-	// FIXME 
 	QString text1 = m_quantize1Model.currentText();
 	QString text2 = m_quantize2Model.currentText();
 	QString text3 = m_quantize3Model.currentText();
 	QString text4 = m_quantize4Model.currentText();
 
 	double i1 = text1ToDouble( text1 );
-	double i2 = text2.toDouble();
-	double i3 = text3.toDouble();
-	double i4 = text4.toDouble();
+	double i2 = text234ToDouble( text2 );
+	double i3 = text234ToDouble( text3 );
+	double i4 = text234ToDouble( text4 );
 
 	return ( DefaultTicksPerTact * i1 ) / i2 / i3 / i4;
 }
