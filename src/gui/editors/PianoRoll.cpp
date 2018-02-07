@@ -421,6 +421,11 @@ PianoRoll::PianoRoll() :
 	m_quantizeModelState_other.append( "4" );
 	m_quantizeModelState_other.append( "1" );
 
+	m_noteLenModelState_other.append( "1" );
+	m_noteLenModelState_other.append( "5" );
+	m_noteLenModelState_other.append( "4" );
+	m_noteLenModelState_other.append( "1" );
+
 	connect( &m_quantizeModel, SIGNAL( dataChanged() ),
 					this, SLOT( quantizeChanged() ) );
 	connect( &m_noteLenModel, SIGNAL( dataChanged() ),
@@ -2773,7 +2778,36 @@ int PianoRoll::xCoordOfTick(int tick )
 		* m_ppt / MidiTime::ticksPerTact() );
 }
 
+
+inline void reduceFraction( double & numer, double & denom )
+{
+	int n = numer* 100;
+	int d = denom* 100;
+	for ( int i=2; i< 19; i++ )
+	{
+		for(;;)
+		{
+			if ( n % i == 0 && d % i == 0 )
+			{
+				n /= i;
+				d /= i;
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+	numer = n;
+	denom = d;
+}
+
+
+
 inline double text1ToDouble( QString text1 ) {
+	if ( text1 == " " )
+		return 0.0;
+
 	double result;
 	if ( text1.contains( "/" ) )
 	{
@@ -2789,6 +2823,70 @@ inline double text1ToDouble( QString text1 ) {
 		result = text1.toDouble();
 	}
 	return result == 0.0 ? 1.0 : result;
+}
+inline double text345ToDouble( QString text345 ) {
+	if ( text345 == " " )
+		return 0.0;
+
+	return text345.toDouble();
+}
+
+// Generate readable string caption from bar, beat, div and subdiv.
+inline QString generateQuantizeString(
+	QString quantizeText1, QString quantizeText2, QString quantizeText3, QString quantizeText4 )
+{
+	double quantNumer = 	text1ToDouble(   quantizeText1 );
+	double quantDenom = 	text345ToDouble( quantizeText2 ) *
+							text345ToDouble( quantizeText3 ) *
+							text345ToDouble( quantizeText4 );
+
+	QString strNumer = QString::number( quantNumer );
+	
+	if ( 2 < strNumer.length() )
+		strNumer = strNumer.mid( 0, 2 );
+
+	return strNumer + "/" + QString::number( quantDenom );
+}
+
+inline QString generateNoteLenString(
+	QString quantizeText1, QString quantizeText2,
+	QString quantizeText3, QString quantizeText4,
+	QString noteLenText1, QString noteLenText2,
+	QString noteLenText3, QString noteLenText4 )
+{
+	double quantValue1 = text1ToDouble(   quantizeText1 );
+	double quantValue2 = text345ToDouble( quantizeText2 );
+	double quantValue3 = text345ToDouble( quantizeText3 );
+	double quantValue4 = text345ToDouble( quantizeText4 );
+
+	double quantNumer = quantValue1;
+	double quantDenom = quantValue2 * quantValue3 * quantValue4;
+
+	double noteLenValue1 = text1ToDouble(   noteLenText1 );
+	double noteLenValue2 = text345ToDouble( noteLenText2 );
+	double noteLenValue3 = text345ToDouble( noteLenText3 );
+	double noteLenValue4 = text345ToDouble( noteLenText4 );
+
+	double resultNumer = 
+		quantNumer *
+		(
+			( noteLenValue1 * quantValue2 * quantValue3 * quantValue4 * 1 ) +
+			( noteLenValue2 *               quantValue3 * quantValue4 * 1 ) +
+			( noteLenValue3 *                             quantValue4 * 1 ) +
+			( noteLenValue4                                           * 1 ) 
+		);
+
+	double resultDenom = quantDenom;
+
+	reduceFraction( resultNumer, resultDenom );
+
+	QString strNumer = QString::number( resultNumer );
+	QString strDenom = QString::number( resultDenom );
+	
+	if ( 2 < strNumer.length() )
+		strNumer = strNumer.mid( 0, 2 );
+
+	return strNumer + "/" + strDenom;
 }
 
 void PianoRoll::paintEvent(QPaintEvent * pe )
@@ -4227,19 +4325,22 @@ void PianoRoll::quantizeChanged()
 }
 
 
+inline QString PianoRoll::quantizeByString()
+{
+	return	generateQuantizeString( 
+				m_quantize1Model.currentText(),
+				m_quantize2Model.currentText(),
+				m_quantize3Model.currentText(),
+				m_quantize4Model.currentText()
+			);
+}
+
 void PianoRoll::quantize123Changed()
 {
 	if ( ! quantizeIsChanging ) {
 		quantizeIsChanging = true;
 
-		QString text1 = m_quantize1Model.currentText();
-		QString text2 = m_quantize2Model.currentText();
-		QString text3 = m_quantize3Model.currentText();
-		QString text4 = m_quantize4Model.currentText();
-
-		double numer = text1ToDouble( text1 );
-		double denom = text2.toDouble() * text3.toDouble() * text4.toDouble();
-		QString ratioString = QString::number( numer, 'f',2 ) + "/" + QString::number( denom );
+		QString ratioString = quantizeByString();
 
 		int idx = m_quantizeModel.findText( ratioString );
 		if ( 0<=idx )
@@ -4258,10 +4359,10 @@ void PianoRoll::quantize123Changed()
 
 			// Store the current state of the set of ComboBox'es
 			m_quantizeModelState_other.clear();
-			m_quantizeModelState_other.append( text1 );
-			m_quantizeModelState_other.append( text2 );
-			m_quantizeModelState_other.append( text3 );
-			m_quantizeModelState_other.append( text4 );
+			m_quantizeModelState_other.append( m_quantize1Model.currentText() );
+			m_quantizeModelState_other.append( m_quantize2Model.currentText() );
+			m_quantizeModelState_other.append( m_quantize3Model.currentText() );
+			m_quantizeModelState_other.append( m_quantize4Model.currentText() );
 		}
 
 		updateNoteLenFromQuantization();
@@ -4413,74 +4514,74 @@ void PianoRoll::noteLenChanged()
 	}
 }
 
+inline QString PianoRoll::noteLenByString()
+{
+	return	generateNoteLenString( 
+				m_quantize1Model.currentText(),
+				m_quantize2Model.currentText(),
+				m_quantize3Model.currentText(),
+				m_quantize4Model.currentText(),
+				m_noteLen1Model.currentText(),
+				m_noteLen2Model.currentText(),
+				m_noteLen3Model.currentText(),
+				m_noteLen4Model.currentText()
+			);
+}
 void PianoRoll::noteLen123Changed()
 {
 	if ( ! noteLenIsChanging ) {
 		noteLenIsChanging = true;
 
-		// NOTE m_noteLenModel.value() == 0 implies "Last-Note" mode.
-		if ( m_noteLenModel.value() < c_noteLenIdx_ratioFrom )
-		{
-			if ( m_quantizeModel.value() == c_quantizeIdx_lock )
-			{
-				if ( m_noteLen1Model.value() < 0 )
-					m_noteLen1Model.setValue( m_noteLen1Model.findText( "1" ) );
-				if ( m_noteLen2Model.value() < 0 )
-					m_noteLen2Model.setValue( m_noteLen2Model.findText( "4" ) );
-				if ( m_noteLen3Model.value() < 0 )
-					m_noteLen3Model.setValue( m_noteLen3Model.findText( "1" ) );
-				if ( m_noteLen4Model.value() < 0 )
-					m_noteLen4Model.setValue( m_noteLen4Model.findText( "1" ) );
-			} else {
-				// If noteLen[1234]ComboBox is touched, noteLenComboBox must be
-				// set to any ratio other than special value.
-				if ( m_noteLen1Model.value() < 0 )
-					m_noteLen1Model.setValue( m_quantize1Model.value() );
-				if ( m_noteLen2Model.value() < 0 )
-					m_noteLen2Model.setValue( m_quantize2Model.value() );
-				if ( m_noteLen3Model.value() < 0 )
-					m_noteLen3Model.setValue( m_quantize3Model.value() );
-				if ( m_noteLen4Model.value() < 0 )
-					m_noteLen4Model.setValue( m_quantize4Model.value() );
-			}
-		}
-
 		// Update noteLenModel
+		QString ratioString = noteLenByString();
+
+		int idx = m_noteLenModel.findText( ratioString );
+		if ( 0<=idx )
 		{
-			QString text1 = m_noteLen1Model.currentText();
-			QString text2 = m_noteLen2Model.currentText();
-			QString text3 = m_noteLen3Model.currentText();
-			QString text4 = m_noteLen4Model.currentText();
+			m_noteLenModel.setValue( idx );
+		}
+		else
+		{
+			// TAG_QUANTIZE_OTHER
+			int lastIndex = m_noteLenModel.size() -1;
+			m_noteLenModel.setItemText( lastIndex, ratioString );
+			m_noteLenModel.setValue( lastIndex );
 
-			int i1 = text1 == " " ? 0 : text1.toInt();
-			int i2 = text2 == " " ? 0 : text2.toInt();
-			int i3 = text3 == " " ? 0 : text3.toInt();
-			int i4 = text4 == " " ? 0 : text4.toInt();
-
-			int i = 1 * text2.toInt() * text3.toInt() * text4.toInt();
-			if ( text1.contains( "/" ) ) {
-				// qDebug() << text1.mid( text1.indexOf( "/" ) +1 ) << "\n" ;
-				i /= text1.mid( text1.indexOf( "/" ) + 1 ).toInt();
-			} else
-				i *= text1.toInt();
-
+			// Store the current state of the set of ComboBox'es
+			m_noteLenModelState_other.clear();
+			m_noteLenModelState_other.append( m_noteLen1Model.currentText() );
+			m_noteLenModelState_other.append( m_noteLen2Model.currentText() );
+			m_noteLenModelState_other.append( m_noteLen3Model.currentText() );
+			m_noteLenModelState_other.append( m_noteLen4Model.currentText() );
 		}
 
-		{
-			// Update quantize[1234]Model if it is Quantize Lock mode.
-			if ( m_quantizeModel.value() == c_quantizeIdx_lock )
-			{
-				if ( ! quantizeIsChanging ) 
-				{
-					quantizeIsChanging = true;
-					m_quantize1Model.setValue( m_noteLen1Model.value() );
-					m_quantize2Model.setValue( m_noteLen2Model.value() );
-					m_quantize3Model.setValue( m_noteLen3Model.value() );
-					m_quantize4Model.setValue( m_noteLen4Model.value() );
-					quantizeIsChanging = false;
-				}
-			}
-		}
+
+//		if ( m_noteLenModel.value() < c_noteLenIdx_ratioFrom )
+//		{
+//			if ( m_quantizeModel.value() == c_quantizeIdx_lock )
+//			{
+//				if ( m_noteLen1Model.value() < 0 )
+//					m_noteLen1Model.setValue( m_noteLen1Model.findText( "1" ) );
+//				if ( m_noteLen2Model.value() < 0 )
+//					m_noteLen2Model.setValue( m_noteLen2Model.findText( "4" ) );
+//				if ( m_noteLen3Model.value() < 0 )
+//					m_noteLen3Model.setValue( m_noteLen3Model.findText( "1" ) );
+//				if ( m_noteLen4Model.value() < 0 )
+//					m_noteLen4Model.setValue( m_noteLen4Model.findText( "1" ) );
+//			} else {
+//				// If noteLen[1234]ComboBox is touched, noteLenComboBox must be
+//				// set to any ratio other than special value.
+//				if ( m_noteLen1Model.value() < 0 )
+//					m_noteLen1Model.setValue( m_quantize1Model.value() );
+//				if ( m_noteLen2Model.value() < 0 )
+//					m_noteLen2Model.setValue( m_quantize2Model.value() );
+//				if ( m_noteLen3Model.value() < 0 )
+//					m_noteLen3Model.setValue( m_quantize3Model.value() );
+//				if ( m_noteLen4Model.value() < 0 )
+//					m_noteLen4Model.setValue( m_quantize4Model.value() );
+//			}
+//		}
+
 
 		noteLenIsChanging = false;
 	}
