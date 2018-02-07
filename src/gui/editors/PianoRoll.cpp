@@ -4106,6 +4106,31 @@ void PianoRoll::zoomingChanged()
 }
 
 
+/////////////////
+
+int calcNoteLen( 
+		int ticksPerTact,
+		double q1, // a nominator   as bar 
+		double q2, // a denominator as beat 
+		double q3, // a denominator as div 
+		double q4, // a denominator as subdiv 
+		int n1,    // a multiplier as bar 
+		int n2,    // a multiplier as beat 
+		int n3,    // a multiplier as div 
+		int n4     // a multiplier as subdiv 
+		)
+{
+	// BTW, If you break the line after return statement in JavaScript,
+	// you will fuck yourself. That's okay because it's C++. 
+	return 
+		(              ( ((double)ticksPerTact) * q1 /  1 )                * n1 ) +
+		( q2 < 2 ? 0 : ( ((double)ticksPerTact) * q1 /  1 / q2 )           * n2 ) +
+		( q3 < 2 ? 0 : ( ((double)ticksPerTact) * q1 /  1 / q2 / q3 )      * n3 ) +
+		( q4 < 2 ? 0 : ( ((double)ticksPerTact) * q1 /  1 / q2 / q3 / q4 ) * n4 ) +
+		0;
+}
+
+
 #define SET_QUANTIZE1234_BY_STR(p1,p2,p3,p4)\
 		m_quantize1Model.setValue( m_quantize1Model.findText( p1 ) );\
 		m_quantize2Model.setValue( m_quantize2Model.findText( p2 ) );\
@@ -4284,6 +4309,11 @@ void PianoRoll::updateNoteLenModel( int i1, int i2, int i3, int i4 )
 		// Supress update noteLenComboBox
 		noteLenIsChanging  = true;
 
+		int v1 = m_noteLen1Model.value();
+		int v2 = m_noteLen2Model.value();
+		int v3 = m_noteLen3Model.value();
+		int v4 = m_noteLen4Model.value();
+
 		m_noteLen1Model.clear();
 		m_noteLen1Model.addItem( " " );
 		for ( int i=1; i<=i1; i++ )
@@ -4304,6 +4334,11 @@ void PianoRoll::updateNoteLenModel( int i1, int i2, int i3, int i4 )
 		for ( int i=1; i<=i4; i++ )
 			m_noteLen4Model.addItem( QString::number( i ) );
 
+		 m_noteLen1Model.setValue( v1 );
+		 m_noteLen2Model.setValue( v2 );
+		 m_noteLen3Model.setValue( v3 );
+		 m_noteLen4Model.setValue( v4 );
+
 		noteLenIsChanging = false;
 	}
 }
@@ -4321,6 +4356,159 @@ void PianoRoll::updateNoteLenFromQuantization()
 }
 
 
+struct LookupNoteLengh_comparator{
+	int preferableBeatNumber;
+	LookupNoteLengh_comparator( int preferableBeatNumber ) : preferableBeatNumber( preferableBeatNumber ){}
+	
+	bool operator() ( std::vector<int> i,  std::vector<int> j ) const
+	{
+		// empty list ( which is supposed to be absent here ) always lose.
+		if ( i.empty() != j.empty() )
+			return j.empty();
+
+		//// If both vectors are empty, they are equal. That is, false.
+		//if ( i.empty() == j.empty() )
+		//	return false;
+
+		// the one has less number of bars wins than the others.
+		if ( i[1] != j[1] ) // bar
+			return i[1] < j[1];
+
+		// subdiv should be small as possible
+		if ( i[4] != j[4] ) // subdiv
+			return i[4] < j[4];
+
+		// preferable beat number ( tipically 4 ) beat wins 
+		if ( i[2] != j[2] )
+		{
+			if ( i[2] == preferableBeatNumber )
+				return true;
+		}
+
+		{
+			struct {
+				int operator() ( std::vector<int>i ) const 
+				{
+					return
+						// [2]=beat, [3]=div [4]=subdiv [5]=len
+						abs( i[2] - i[3] ) +
+						abs( i[3] - i[4] ) +
+						abs( i[4] - i[5] ) +
+						abs( i[5] - i[2] ) +
+						abs( i[2] - i[4] ) +
+						abs( i[3] - i[5] )
+					;
+				}
+			} calcScore1;
+
+			int ii = calcScore1( i );
+			int jj = calcScore1( j );
+
+			// beat number and div number should be close as possible.
+			// for example 4&3 should win 5&1. 
+			if ( ii != jj )
+				return ii < jj;
+		}
+
+
+		// beat should be as large as possible
+		if ( i[2] != j[2] ) // beat
+			return i[2] > j[2];
+
+		if ( i[3] != j[3] ) // div
+			return i[3] < j[3];
+
+
+		if ( i[5] != j[5] ) // notelen
+			return i[5] < j[5];
+
+		// The values i and j are totally equal. That is, false.
+		return false;
+	}
+};
+
+std::vector<int> lookupNoteLength( int barLen0, int noteLen0, int preferableBeatNumber )
+{
+	// Search the appropriate bar/beat/div/subdiv.
+	const int c_noteLenThreshold = 1;
+	const double dBarLen0 = barLen0;
+
+	int ctr = 0;
+
+	std::vector<std::vector<int> > foundRatios;
+
+	for ( int i1=0; i1<19; i1++ ) // bar
+	{
+		for ( int i2=0; i2<19; i2++ ) //beat
+		{
+			for ( int i3=0; i3<19; i3++ ) // div
+			{
+				for ( int i4=0; i4<19; i4++ ) // subdiv
+				{
+					ctr++;
+					int noteLen1 = ( ( ( dBarLen0 * i1 ) / i2 / i3 / i4 )  );
+
+
+					if ( abs( noteLen1 - noteLen0 ) < c_noteLenThreshold )
+					{
+						std::vector<int> foundVector = { 0, i1,i2,i3,i4 };
+						foundRatios.push_back( foundVector );
+					}
+					else if ( noteLen0 < noteLen1 )
+						continue;
+				}
+			}
+		}
+	}
+
+	// printf ( "lookupNoteLength:%d\n", ctr );
+	// printf ( "foundRatios.size():%d\n", foundRatios.size() );
+
+	if ( foundRatios.empty() )
+		return std::vector<int>();
+
+	LookupNoteLengh_comparator lookupNoteLength_comparator( preferableBeatNumber );
+	std::sort( foundRatios.begin(), foundRatios.end(), lookupNoteLength_comparator );
+
+	return * foundRatios.begin();
+}
+
+
+std::vector<int> lookupNoteLength2( int barLen0, int noteLen0, 
+		double q1, 
+		double q2, 
+		double q3, 
+		double q4 
+		)
+{
+	// Search the appropriate bar/beat/div/subdiv.
+	const int c_noteLenThreshold = 3;
+	const int m1 = 4;
+	const int m2 = q2;
+	const int m3 = q3;
+	const int m4 = q4;
+
+	for ( int n1=0; n1<m1; n1++ )
+	{
+		for ( int n2=0; n2<m2; n2++ )
+		{
+			for ( int n3=0; n3<m3; n3++ )
+			{
+				for ( int n4=0; n4<m4; n4++ )
+				{
+					int noteLen1 = calcNoteLen( barLen0 , q1,q2,q3,q4, n1,n2,n3,n4 );
+					if ( abs( noteLen0 - noteLen1 ) < c_noteLenThreshold )
+					{
+						std::vector<int> foundVector = { 0, n1,n2,n3,n4 };
+						return foundVector;
+					}
+				}
+			}
+		}
+	}
+
+	return std::vector<int>();
+}
 
 void PianoRoll::updateNoteLenFromSelectedNote()
 {
@@ -4334,10 +4522,14 @@ void PianoRoll::updateNoteLenFromSelectedNote()
 			if ( preferableBeatNumber < 1 )
 				preferableBeatNumber = 4;
 
-			std::vector<int> nnlRatio = lookupNoteLength(
+			std::vector<int> nnlRatio = lookupNoteLength2(
 				DefaultTicksPerTact, 
 				newNoteLen().getTicks(),
-				preferableBeatNumber );
+				text1ToDouble(   m_quantize1Model.currentText() ),
+				text234ToDouble( m_quantize2Model.currentText() ),
+				text234ToDouble( m_quantize3Model.currentText() ),
+				text234ToDouble( m_quantize4Model.currentText() )
+			 );
 
 			if ( ! nnlRatio.empty() )
 			{
@@ -4345,18 +4537,15 @@ void PianoRoll::updateNoteLenFromSelectedNote()
 						QString::number( nnlRatio[1] ) ,
 						QString::number( nnlRatio[2] ) ,
 						QString::number( nnlRatio[3] ) ,
-						QString::number( nnlRatio[4] ) ,
-						QString::number( nnlRatio[5] ) 
+						QString::number( nnlRatio[4] )
 						);
 			}
 			else
 			{
-				// TODO
-				m_noteLen1Model.setValue( -1 );
-				m_noteLen2Model.setValue( -1 );
-				m_noteLen3Model.setValue( -1 );
-				m_noteLen4Model.setValue( -1 );
-				m_noteLen5Model.setValue( -1 );
+				m_noteLen1Model.setValue( 0 );
+				m_noteLen2Model.setValue( 0 );
+				m_noteLen3Model.setValue( 0 );
+				m_noteLen4Model.setValue( 0 );
 			}
 
 			noteLenIsChanging = false;
@@ -4675,14 +4864,8 @@ MidiTime PianoRoll::newNoteLen() const
 		int n3 = ntext3.toInt();
 		int n4 = ntext4.toInt();
 
-		// BTW, If you break the line after return statement in JavaScript,
-		// you will fuck yourself. That's okay it's C++. 
-		return 
-			( ((double)DefaultTicksPerTact) * q1 /  1 )                * n1 +
-			( ((double)DefaultTicksPerTact) * q1 /  1 / q2 )           * n2 +
-			( ((double)DefaultTicksPerTact) * q1 /  1 / q2 / q3 )      * n3 +
-			( ((double)DefaultTicksPerTact) * q1 /  1 / q2 / q3 / q4 ) * n4 +
-			0;
+		return
+			calcNoteLen( DefaultTicksPerTact , q1,q2,q3,q4,n1,n2,n3,n4 );
 	}
 }
 
