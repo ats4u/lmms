@@ -153,7 +153,6 @@ const QVector<double> PianoRoll::m_zoomLevels =
 // Settings for quantizeComboBox and noteLenComboBox
 // const char* MSG_LAST_NOTE = "Last Note";
 const char* MSG_FREE = "FREE";
-const char* MSG_LOCK2QUANTIZE = "LOCK";
 const char* MSG_LAST_NOTE = "LAST";
 const char* MSG_BAR = "BAR";
 const char* MSG_BEAT = "BEAT";
@@ -163,9 +162,8 @@ const char* MSG_LEN   = "LEN";
 const int QUANTIZE_CAPTION_FONT_SIZE = 6;
 
 const int c_noteLenIdx_free = 0;
-const int c_noteLenIdx_lock2quantize = 1;
-const int c_noteLenIdx_lastNote = 2;
-const int c_noteLenIdx_ratioFrom = 3;
+const int c_noteLenIdx_lastNote = 1;
+const int c_noteLenIdx_ratioFrom = 2;
 const int c_quantizeIdx_lock = 0;
 
 
@@ -482,8 +480,6 @@ PianoRoll::PianoRoll() :
 	// Set up note length model
 	m_noteLenModel.addItem( tr( MSG_FREE  ),
 					new PixmapLoader( "edit_draw" ) );
-	m_noteLenModel.addItem( tr( MSG_LOCK2QUANTIZE  ),
-					new PixmapLoader( "edit_draw" ) );
 	m_noteLenModel.addItem( tr( MSG_LAST_NOTE ),
 					new PixmapLoader( "edit_draw" ) );
 	m_noteLenModel.addSeparator();
@@ -513,7 +509,7 @@ PianoRoll::PianoRoll() :
 	m_noteLenModel.addSeparator();
 	// TAG_QUANTIZE_OTHER
 	m_noteLenModel.addItem( OTHER );
-	m_noteLenModel.setValue( c_noteLenIdx_lock2quantize );
+	m_noteLenModel.setValue( c_noteLenIdx_free );
 
 
 
@@ -566,62 +562,6 @@ PianoRoll::PianoRoll() :
 			this, SLOT( selectRegionFromPixels( int, int ) ) );
 }
 
-
-// Initialize noteLen[12345]Model
-void PianoRoll::updateNoteLenModel( int i1, int i2, int i3, int i4 )
-{
-	m_noteLen1Model.clear();
-	m_noteLen1Model.addItem( " " );
-	for ( int i=1; i<=i1; i++ )
-		m_noteLen1Model.addItem( QString::number( i ) );
-
-	m_noteLen2Model.clear();
-	m_noteLen2Model.addItem( " " );
-	for ( int i=1; i<=i2; i++ )
-		m_noteLen2Model.addItem( QString::number( i ) );
-
-	m_noteLen3Model.clear();
-	m_noteLen3Model.addItem( " " );
-	for ( int i=1; i<=i3; i++ )
-		m_noteLen3Model.addItem( QString::number( i ) );
-
-	m_noteLen4Model.clear();
-	m_noteLen4Model.addItem( " " );
-	for ( int i=1; i<=i4; i++ )
-		m_noteLen4Model.addItem( QString::number( i ) );
-
-//	m_noteLen1Model.addItem(  "1/3" );
-//	m_noteLen1Model.addItem(  "1/2" );
-//	for ( int i = 1; i<=19; i++ ) {
-//		m_noteLen1Model.addItem(  QString::number( i ) );
-//	}
-//	for ( int i = 1; i<=19; i++ ) {
-//		m_noteLen2Model.addItem(  QString::number( i ) );
-//	}
-//	for ( int i = 1; i<=19; i++ ) {
-//		m_noteLen3Model.addItem(  QString::number( i ) );
-//	}
-//	for ( int i = 1; i<=19; i++ ) {
-//		m_noteLen4Model.addItem(  QString::number( i ) );
-//	}
-//
-//	m_noteLen5Model.addItem( "0.25" );
-//	m_noteLen5Model.addItem( "0.5" );
-//	m_noteLen5Model.addItem( "0.75" );
-//	m_noteLen5Model.addItem( "1.5" );
-//	m_noteLen5Model.addItem( "1.75" );
-//	m_noteLen5Model.addSeparator();
-//
-//	for ( int i = 1; i<=19; i++ ) {
-//		m_noteLen5Model.addItem(  QString::number( i ) );
-//	}
-//
-//	m_noteLen1Model.setValue( m_noteLen1Model.findText( "1" ) );
-//	m_noteLen2Model.setValue( m_noteLen2Model.findText( "4" ) );
-//	m_noteLen3Model.setValue( m_noteLen3Model.findText( "4" ) );
-//	m_noteLen4Model.setValue( m_noteLen4Model.findText( "1" ) );
-//	m_noteLen5Model.setValue( m_noteLen5Model.findText( "1" ) );
-}
 
 
 void PianoRoll::reset()
@@ -2824,69 +2764,11 @@ inline double text1ToDouble( QString text1 ) {
 	}
 	return result == 0.0 ? 1.0 : result;
 }
-inline double text345ToDouble( QString text345 ) {
-	if ( text345 == " " )
+inline double text234ToDouble( QString text234 ) {
+	if ( text234 == " " )
 		return 0.0;
 
-	return text345.toDouble();
-}
-
-// Generate readable string caption from bar, beat, div and subdiv.
-inline QString generateQuantizeString(
-	QString quantizeText1, QString quantizeText2, QString quantizeText3, QString quantizeText4 )
-{
-	double quantNumer = 	text1ToDouble(   quantizeText1 );
-	double quantDenom = 	text345ToDouble( quantizeText2 ) *
-							text345ToDouble( quantizeText3 ) *
-							text345ToDouble( quantizeText4 );
-
-	QString strNumer = QString::number( quantNumer );
-	
-	if ( 2 < strNumer.length() )
-		strNumer = strNumer.mid( 0, 2 );
-
-	return strNumer + "/" + QString::number( quantDenom );
-}
-
-inline QString generateNoteLenString(
-	QString quantizeText1, QString quantizeText2,
-	QString quantizeText3, QString quantizeText4,
-	QString noteLenText1, QString noteLenText2,
-	QString noteLenText3, QString noteLenText4 )
-{
-	double quantValue1 = text1ToDouble(   quantizeText1 );
-	double quantValue2 = text345ToDouble( quantizeText2 );
-	double quantValue3 = text345ToDouble( quantizeText3 );
-	double quantValue4 = text345ToDouble( quantizeText4 );
-
-	double quantNumer = quantValue1;
-	double quantDenom = quantValue2 * quantValue3 * quantValue4;
-
-	double noteLenValue1 = text1ToDouble(   noteLenText1 );
-	double noteLenValue2 = text345ToDouble( noteLenText2 );
-	double noteLenValue3 = text345ToDouble( noteLenText3 );
-	double noteLenValue4 = text345ToDouble( noteLenText4 );
-
-	double resultNumer = 
-		quantNumer *
-		(
-			( noteLenValue1 * quantValue2 * quantValue3 * quantValue4 * 1 ) +
-			( noteLenValue2 *               quantValue3 * quantValue4 * 1 ) +
-			( noteLenValue3 *                             quantValue4 * 1 ) +
-			( noteLenValue4                                           * 1 ) 
-		);
-
-	double resultDenom = quantDenom;
-
-	reduceFraction( resultNumer, resultDenom );
-
-	QString strNumer = QString::number( resultNumer );
-	QString strDenom = QString::number( resultDenom );
-	
-	if ( 2 < strNumer.length() )
-		strNumer = strNumer.mid( 0, 2 );
-
-	return strNumer + "/" + strDenom;
+	return text234.toDouble();
 }
 
 void PianoRoll::paintEvent(QPaintEvent * pe )
@@ -4325,6 +4207,27 @@ void PianoRoll::quantizeChanged()
 }
 
 
+// Generate readable string caption from bar, beat, div and subdiv.
+inline QString generateQuantizeString(
+	QString quantizeText1, QString quantizeText2, QString quantizeText3, QString quantizeText4 )
+{
+	double quantNumer = 	text1ToDouble(   quantizeText1 );
+	double quantDenom = 	text234ToDouble( quantizeText2 ) *
+							text234ToDouble( quantizeText3 ) *
+							text234ToDouble( quantizeText4 );
+
+	QString strNumer = QString::number( quantNumer );
+
+	if ( strNumer == "0" )
+		return "0";
+	
+	if ( 2 < strNumer.length() )
+		strNumer = strNumer.mid( 0, 2 );
+
+	return strNumer + "/" + QString::number( quantDenom );
+}
+
+
 inline QString PianoRoll::quantizeByString()
 {
 	return	generateQuantizeString( 
@@ -4373,23 +4276,48 @@ void PianoRoll::quantize123Changed()
 	update();
 }
 
+// Initialize noteLen[12345]Model
+void PianoRoll::updateNoteLenModel( int i1, int i2, int i3, int i4 )
+{
+	if ( ! noteLenIsChanging )
+	{
+		// Supress update noteLenComboBox
+		noteLenIsChanging  = true;
+
+		m_noteLen1Model.clear();
+		m_noteLen1Model.addItem( " " );
+		for ( int i=1; i<=i1; i++ )
+			m_noteLen1Model.addItem( QString::number( i ) );
+
+		m_noteLen2Model.clear();
+		m_noteLen2Model.addItem( " " );
+		for ( int i=1; i<=i2; i++ )
+			m_noteLen2Model.addItem( QString::number( i ) );
+
+		m_noteLen3Model.clear();
+		m_noteLen3Model.addItem( " " );
+		for ( int i=1; i<=i3; i++ )
+			m_noteLen3Model.addItem( QString::number( i ) );
+
+		m_noteLen4Model.clear();
+		m_noteLen4Model.addItem( " " );
+		for ( int i=1; i<=i4; i++ )
+			m_noteLen4Model.addItem( QString::number( i ) );
+
+		noteLenIsChanging = false;
+	}
+}
+
+
 // This function is called from both quantize123Changed() and quantizeChanged()
 void PianoRoll::updateNoteLenFromQuantization()
 {
-	// if ( ! noteLenChanged )
-	{
-		// Supress update noteLenComboBox
-		// noteLenIsChanging  = true;
-
-		updateNoteLenModel(
-				4,
-				m_quantize2Model.currentText().toInt() * 2,
-				m_quantize3Model.currentText().toInt() * 2,
-				m_quantize4Model.currentText().toInt() * 2
-			);
-
-		// noteLenIsChanging  = false;
-	}
+	updateNoteLenModel(
+			4,
+			m_quantize2Model.currentText().toInt() * 2,
+			m_quantize3Model.currentText().toInt() * 2,
+			m_quantize4Model.currentText().toInt() * 2
+		);
 }
 
 
@@ -4406,29 +4334,30 @@ void PianoRoll::updateNoteLenFromSelectedNote()
 			if ( preferableBeatNumber < 1 )
 				preferableBeatNumber = 4;
 
-			//std::vector<int> nnlRatio = lookupNoteLength( DefaultTicksPerTact, 
-			//		newNoteLen().getTicks(),
-			//		preferableBeatNumber );
+			std::vector<int> nnlRatio = lookupNoteLength(
+				DefaultTicksPerTact, 
+				newNoteLen().getTicks(),
+				preferableBeatNumber );
 
-//			if ( ! nnlRatio.empty() )
-//			{
-//				SET_NOTELEN1234_BY_STR( 
-//						QString::number( nnlRatio[1] ) ,
-//						QString::number( nnlRatio[2] ) ,
-//						QString::number( nnlRatio[3] ) ,
-//						QString::number( nnlRatio[4] ) ,
-//						QString::number( nnlRatio[5] ) 
-//						);
-//			}
-//			else
-//			{
-//				// TODO
-//				m_noteLen1Model.setValue( -1 );
-//				m_noteLen2Model.setValue( -1 );
-//				m_noteLen3Model.setValue( -1 );
-//				m_noteLen4Model.setValue( -1 );
-//				m_noteLen5Model.setValue( -1 );
-//			}
+			if ( ! nnlRatio.empty() )
+			{
+				SET_NOTELEN1234_BY_STR( 
+						QString::number( nnlRatio[1] ) ,
+						QString::number( nnlRatio[2] ) ,
+						QString::number( nnlRatio[3] ) ,
+						QString::number( nnlRatio[4] ) ,
+						QString::number( nnlRatio[5] ) 
+						);
+			}
+			else
+			{
+				// TODO
+				m_noteLen1Model.setValue( -1 );
+				m_noteLen2Model.setValue( -1 );
+				m_noteLen3Model.setValue( -1 );
+				m_noteLen4Model.setValue( -1 );
+				m_noteLen5Model.setValue( -1 );
+			}
 
 			noteLenIsChanging = false;
 		}
@@ -4443,10 +4372,6 @@ void PianoRoll::noteLenChanged()
 		if ( m_noteLenModel.value() == c_noteLenIdx_lastNote )
 		{
 			updateNoteLenFromSelectedNote();
-		}
-		else if ( m_noteLenModel.value() == c_noteLenIdx_lock2quantize )
-		{
-			updateNoteLenFromQuantization();
 		}
 		else
 		{
@@ -4512,6 +4437,50 @@ void PianoRoll::noteLenChanged()
 
 		noteLenIsChanging = false;
 	}
+}
+
+inline QString generateNoteLenString(
+	QString quantizeText1, QString quantizeText2,
+	QString quantizeText3, QString quantizeText4,
+	QString noteLenText1, QString noteLenText2,
+	QString noteLenText3, QString noteLenText4 )
+{
+	double quantValue1 = text1ToDouble(   quantizeText1 );
+	double quantValue2 = text234ToDouble( quantizeText2 );
+	double quantValue3 = text234ToDouble( quantizeText3 );
+	double quantValue4 = text234ToDouble( quantizeText4 );
+
+	double quantNumer = quantValue1;
+	double quantDenom = quantValue2 * quantValue3 * quantValue4;
+
+	double noteLenValue1 = text1ToDouble(   noteLenText1 );
+	double noteLenValue2 = text234ToDouble( noteLenText2 );
+	double noteLenValue3 = text234ToDouble( noteLenText3 );
+	double noteLenValue4 = text234ToDouble( noteLenText4 );
+
+	double resultNumer = 
+		quantNumer *
+		(
+			( noteLenValue1 * quantValue2 * quantValue3 * quantValue4 * 1 ) +
+			( noteLenValue2 *               quantValue3 * quantValue4 * 1 ) +
+			( noteLenValue3 *                             quantValue4 * 1 ) +
+			( noteLenValue4                                           * 1 ) 
+		);
+
+	double resultDenom = quantDenom;
+
+	reduceFraction( resultNumer, resultDenom );
+
+	QString strNumer = QString::number( resultNumer );
+	QString strDenom = QString::number( resultDenom );
+
+	if ( strNumer == "0" )
+		return "0";
+	
+	if ( 2 < strNumer.length() )
+		strNumer = strNumer.mid( 0, 2 );
+
+	return strNumer + "/" + strDenom;
 }
 
 inline QString PianoRoll::noteLenByString()
@@ -4684,45 +4653,37 @@ MidiTime PianoRoll::newNoteLen() const
 	{
 		return m_lenOfNewNotes;
 	}
-	else if ( m_noteLenModel.value() == c_noteLenIdx_lock2quantize )
+	else
 	{
-		return quantization();
+		QString qtext1 = m_quantize1Model.currentText();
+		QString qtext2 = m_quantize2Model.currentText();
+		QString qtext3 = m_quantize3Model.currentText();
+		QString qtext4 = m_quantize4Model.currentText();
+
+		double q1 = text1ToDouble(   qtext1 );
+		double q2 = text234ToDouble( qtext2 );
+		double q3 = text234ToDouble( qtext3 );
+		double q4 = text234ToDouble( qtext4 );
+
+		QString ntext1 = m_noteLen1Model.currentText();
+		QString ntext2 = m_noteLen2Model.currentText();
+		QString ntext3 = m_noteLen3Model.currentText();
+		QString ntext4 = m_noteLen4Model.currentText();
+
+		int n1 = ntext1.toInt();
+		int n2 = ntext2.toInt();
+		int n3 = ntext3.toInt();
+		int n4 = ntext4.toInt();
+
+		// BTW, If you break the line after return statement in JavaScript,
+		// you will fuck yourself. That's okay it's C++. 
+		return 
+			( ((double)DefaultTicksPerTact) * q1 /  1 )                * n1 +
+			( ((double)DefaultTicksPerTact) * q1 /  1 / q2 )           * n2 +
+			( ((double)DefaultTicksPerTact) * q1 /  1 / q2 / q3 )      * n3 +
+			( ((double)DefaultTicksPerTact) * q1 /  1 / q2 / q3 / q4 ) * n4 +
+			0;
 	}
-
-	QString qtext1 = m_quantize1Model.currentText();
-	QString qtext2 = m_quantize2Model.currentText();
-	QString qtext3 = m_quantize3Model.currentText();
-	QString qtext4 = m_quantize4Model.currentText();
-
-	double q1 = text1ToDouble( qtext1 );
-	double q2 = qtext2.toDouble();
-	double q3 = qtext3.toDouble();
-	double q4 = qtext4.toDouble();
-
-	QString ntext1 = m_noteLen1Model.currentText();
-	QString ntext2 = m_noteLen2Model.currentText();
-	QString ntext3 = m_noteLen3Model.currentText();
-	QString ntext4 = m_noteLen4Model.currentText();
-
-	int n1 = ntext1.toInt();
-	int n2 = ntext2.toInt();
-	int n3 = ntext3.toInt();
-	int n4 = ntext4.toInt();
-
-	// BTW, If you break the line after return statement,
-	// you will fuck yourself when you write JavaScript. 
-	// That's okay it's C++. 
-	return 
-		(
-			( ((double)DefaultTicksPerTact) * q1 /  1 ) * n1 +
-			( ((double)DefaultTicksPerTact) * q1 / q2 ) * n2 +
-			( ((double)DefaultTicksPerTact) * q1 / q3 ) * n3 +
-			( ((double)DefaultTicksPerTact) * q1 / q4 ) * n4 +
-			0
-		);
-
-	// QString text = m_noteLenModel.currentText();
-	// return DefaultTicksPerTact / text.right( text.length() - 2 ).toInt();
 }
 
 
