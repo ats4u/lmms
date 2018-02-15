@@ -1073,6 +1073,112 @@ void DataFile::upgrade()
 }
 
 
+void upgrade_ppqn( DataFile& dataFile ) {
+	// If the project file does not have ppqn value, that means 
+	// the project file is made by LMMS older than v1.2.0 so 
+	// default it to 192 TicksPerTact to keep lower compatibility.
+	// 
+	// Otherwise the project file is made by newer LMMS which means
+	// the the project file should have ppqn value.
+
+	QDomElement&  m_head = dataFile.head();
+
+	bool doCorrection;
+	int itsPPQN;
+	IntModel i( DefaultPPQN, 0, 50000, 0 , SongEditor::tr( "Pulse Per Quater Note" ) );
+
+	if ( m_head.hasAttribute( "ppqn" ) ) {
+		// ** PPQN value was found **
+		// If there is ppqn value in the project file, it is currently able to
+		// assume that it is 960.  But if any value other than 48 or 960
+		// appears in a project file in future, it probably becomes a problem.
+		// Try to correct it here.
+
+		i.loadSettings( dataFile.head(), "ppqn" );
+		itsPPQN = i.value();
+
+		printf ("PPQN WAS FOUND: Its PPQN value is %d\n", itsPPQN );
+
+		if ( itsPPQN == DefaultPPQN ) {
+			doCorrection = false;
+		} else {
+			doCorrection = true;
+		}
+	} else {
+		// Otherwise it is supposed to be a project file <= 1.2.0.
+		// It is supposed to be 48 ppqn. See MidiTime.h
+		printf ("PPQN WAS NOT FOUND\n" );
+		itsPPQN = DefaultPPQN_old;
+		doCorrection = true;
+	}
+
+	// Correct ppqn value.
+	if ( doCorrection ) {
+		printf( "PPQN correction\n" );
+		// In most case, this ratio is 960 / 48 = 20
+		i.setValue( DefaultPPQN );
+		i.saveSettings( dataFile, dataFile.head(), "ppqn" );
+		printf ("new PPQN WAS written %d\n", i.value() );
+
+		class Correct_PPQN {
+			const DataFile& dataFile;
+			const int ratio;
+			const char* tagName;
+			const std::list<std::string> attrs;
+
+			public:
+			Correct_PPQN(
+				const DataFile& dataFile,
+				const int ratio,
+				const char* tagName,
+				const std::list<std::string> & attrs 
+			) : dataFile( dataFile ),
+				ratio( ratio ),
+				tagName( tagName ),
+				attrs( attrs ) 
+			{
+				printf ("Correcting PPQN %s ...\n", tagName );
+				proc();
+			}
+			~Correct_PPQN()
+			{
+			}
+			void proc()
+			{
+				QDomNodeList nodelist=dataFile.elementsByTagName( tagName );
+				for( int i=0,n=nodelist.count(); i<n; ++i ) {
+					QDomElement e = nodelist.at(i).toElement();
+					for ( std::list<std::string>::const_iterator it = attrs.begin(); it != attrs.end(); ++it ) {
+						correctAttr( e, it->c_str(), ratio );
+					}
+				}
+			}
+			inline void correctAttr( QDomElement& e, const char* attrName, const int ratio )
+			{
+				// int n = e.attribute( attrName ).toInt() * ratio;
+				// e.setAttribute( attrName, QString::number( n ) );
+
+				QDomAttr attr = e.attributeNode( attrName );
+				int n = attr.value().toInt() * ratio;
+				attr.setValue( QString::number( n ) );
+			}
+		};
+
+		printf ("Start correction PPQN\n" );
+		int ratio = DefaultPPQN / itsPPQN;
+		Correct_PPQN( dataFile, ratio,  "bbtco"            , { "pos", "len" } );
+		Correct_PPQN( dataFile, ratio,  "sampletco"        , { "pos", "len" } );
+		Correct_PPQN( dataFile, ratio,  "automationpattern", { "pos", "len" } );
+		Correct_PPQN( dataFile, ratio,  "pattern"          , { "pos", "len" } );
+		Correct_PPQN( dataFile, ratio,  "time"             , { "pos", "len" } );
+		Correct_PPQN( dataFile, ratio,  "timeline"         , { "lp0pos", "lp1pos" } );
+		Correct_PPQN( dataFile, ratio,  "note"             , { "pos", "len" } );
+		printf ("Finished correction PPQN\n" );
+	} else {
+		printf( "PPQN correction is not necessary\n" );
+	}
+}
+
 
 
 void DataFile::loadData( const QByteArray & _data, const QString & _sourceFile )
@@ -1151,6 +1257,8 @@ void DataFile::loadData( const QByteArray & _data, const QString & _sourceFile )
 			}
 		}
 	}
+
+	upgrade_ppqn( *this );
 
 	m_content = root.elementsByTagName( typeName( m_type ) ).
 							item( 0 ).toElement();

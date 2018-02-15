@@ -32,8 +32,17 @@
 #include "export.h"
 #include "lmms_basics.h"
 
+
+
+// 960p ppqn = 3840 TicksPerTact
+const int DefaultPPQN = 960; 
+// 48 ppqn = 192 TicksPerTact ( <= 1.2.0 )
+const int DefaultPPQN_old = 48; 
+ // beat to measure multiplier. This assumes the LMMS's default time is four.
+const int b2m = 4;
+
 // note: 1 "Tact" = 1 Measure
-const int DefaultTicksPerTact = 192;
+const int DefaultTicksPerTact = DefaultPPQN * b2m; // =960 PPQN  
 const int DefaultStepsPerTact = 16;
 const int DefaultBeatsPerTact = DefaultTicksPerTact / DefaultStepsPerTact;
 

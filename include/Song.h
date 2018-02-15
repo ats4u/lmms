@@ -51,6 +51,7 @@ const tick_t MaxSongLength = 9999 * DefaultTicksPerTact;
 class EXPORT Song : public TrackContainer
 {
 	Q_OBJECT
+	mapPropertyFromModel( int,getTicksPerTact,setTicksPerTact,m_ticksPerTact );
 	mapPropertyFromModel( int,getTempo,setTempo,m_tempoModel );
 	mapPropertyFromModel( int,masterPitch,setMasterPitch,m_masterPitchModel );
 	mapPropertyFromModel( int,masterVolume,setMasterVolume, m_masterVolumeModel );
@@ -201,6 +202,7 @@ public:
 	}
 
 
+	int getTicksPerTact();
 	bpm_t getTempo();
 	virtual AutomationPattern * tempoAutomationPattern();
 
@@ -303,6 +305,7 @@ private slots:
 	void addSampleTrack();
 	void addAutomationTrack();
 
+	void setTicksPerTact();
 	void setTempo();
 	void setTimeSignature();
 
@@ -347,6 +350,7 @@ private:
 
 	AutomationTrack * m_globalAutomationTrack;
 
+	IntModel m_ticksPerTact;
 	IntModel m_tempoModel;
 	MeterModel m_timeSigModel;
 	int m_oldTicksPerTact;

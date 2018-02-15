@@ -63,13 +63,15 @@
 
 tick_t MidiTime::s_ticksPerTact = DefaultTicksPerTact;
 
-
+const int UndefinedTicksPerTact = 0;
+const int OldDefaultTicksPerTact = 192;
 
 Song::Song() :
 	TrackContainer(),
 	m_globalAutomationTrack( dynamic_cast<AutomationTrack *>(
 				Track::create( Track::HiddenAutomationTrack,
 								this ) ) ),
+	m_ticksPerTact( UndefinedTicksPerTact, 0, 50000, this, tr( "Pulse Per Quater Note" ) ),
 	m_tempoModel( DefaultTempo, MinTempo, MaxTempo, this, tr( "Tempo" ) ),
 	m_timeSigModel( this ),
 	m_oldTicksPerTact( DefaultTicksPerTact ),
@@ -135,6 +137,9 @@ void Song::masterVolumeChanged()
 
 
 
+void Song::setTicksPerTact()
+{
+}
 
 void Song::setTempo()
 {
@@ -800,6 +805,11 @@ void Song::addAutomationTrack()
 
 
 
+int Song::getTicksPerTact()
+{
+	return ( int )m_ticksPerTact.value();
+}
+
 bpm_t Song::getTempo()
 {
 	return ( bpm_t )m_tempoModel.value();
@@ -867,6 +877,7 @@ void Song::clearProject()
 		gui->pianoRoll()->reset();
 	}
 
+	m_ticksPerTact.reset();
 	m_tempoModel.reset();
 	m_masterVolumeModel.reset();
 	m_masterPitchModel.reset();
@@ -941,6 +952,7 @@ void Song::createNewProject()
 	Track::create( Track::BBTrack, this );
 	Track::create( Track::AutomationTrack, this );
 
+	m_ticksPerTact.setInitValue( UndefinedTicksPerTact );
 	m_tempoModel.setInitValue( DefaultTempo );
 	m_timeSigModel.reset();
 	m_masterVolumeModel.setInitValue( 100 );
@@ -971,6 +983,7 @@ void Song::createNewProject()
 void Song::createNewProjectFromTemplate( const QString & templ )
 {
 	loadProject( templ );
+
 	// clear file-name so that user doesn't overwrite template when
 	// saving...
 	m_fileName = m_oldFileName = "";
@@ -981,7 +994,6 @@ void Song::createNewProjectFromTemplate( const QString & templ )
 		gui->mainWindow()->resetWindowTitle();
 	}
 }
-
 
 
 
@@ -1021,10 +1033,14 @@ void Song::loadProject( const QString & fileName )
 	Engine::mixer()->requestChangeInModel();
 
 	// get the header information from the DOM
+	
+	// loading ppqn from DOM
+	m_ticksPerTact.loadSettings( dataFile.head(), "ppqn" );
 	m_tempoModel.loadSettings( dataFile.head(), "bpm" );
 	m_timeSigModel.loadSettings( dataFile.head(), "timesig" );
 	m_masterVolumeModel.loadSettings( dataFile.head(), "mastervol" );
 	m_masterPitchModel.loadSettings( dataFile.head(), "masterpitch" );
+
 
 	if( m_playPos[Mode_PlaySong].m_timeLine )
 	{
@@ -1052,6 +1068,8 @@ void Song::loadProject( const QString & fileName )
 			gui->fxMixerView()->refreshDisplay();
 		}
 	}
+
+
 
 	node = dataFile.content().firstChild();
 
@@ -1172,6 +1190,7 @@ bool Song::saveProjectFile( const QString & filename )
 
 	DataFile dataFile( DataFile::SongProject );
 
+	m_ticksPerTact.saveSettings( dataFile, dataFile.head(), "ppqn" );
 	m_tempoModel.saveSettings( dataFile, dataFile.head(), "bpm" );
 	m_timeSigModel.saveSettings( dataFile, dataFile.head(), "timesig" );
 	m_masterVolumeModel.saveSettings( dataFile, dataFile.head(), "mastervol" );
