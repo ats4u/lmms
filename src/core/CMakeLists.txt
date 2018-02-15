@@ -21,6 +21,7 @@ set(LMMS_SRCS
 	core/BufferManager.cpp
 	core/Clipboard.cpp
 	core/ComboBoxModel.cpp
+	core/ComboBoxModel2.cpp
 	core/ConfigManager.cpp
 	core/Controller.cpp
 	core/ControllerConnection.cpp

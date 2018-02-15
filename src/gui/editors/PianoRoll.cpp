@@ -35,6 +35,8 @@
 #include <QStyleOption>
 #include <QSignalMapper>
 
+#include <QDebug>
+
 #ifndef __USE_XOPEN
 #define __USE_XOPEN
 #endif
@@ -47,7 +49,7 @@
 #include "PianoRoll.h"
 #include "BBTrackContainer.h"
 #include "Clipboard.h"
-#include "ComboBox.h"
+#include "ComboBox2.h"
 #include "debug.h"
 #include "DetuningHelper.h"
 #include "embed.h"
@@ -107,6 +109,8 @@ const int NUM_EVEN_LENGTHS = 6;
 const int NUM_TRIPLET_LENGTHS = 5;
 
 
+static const char* LOCK = "LOCK";
+static const char* OTHER = "---";
 
 QPixmap * PianoRoll::s_whiteKeySmallPm = NULL;
 QPixmap * PianoRoll::s_whiteKeySmallPressedPm = NULL;
@@ -146,13 +150,39 @@ const QVector<double> PianoRoll::m_zoomLevels =
 		{ 0.125f, 0.25f, 0.5f, 1.0f, 2.0f, 4.0f, 8.0f };
 
 
+// Settings for quantizeComboBox and noteLenComboBox
+// const char* MSG_LAST_NOTE = "Last Note";
+const char* MSG_FREE = "FREE";
+const char* MSG_LAST_NOTE = "LAST";
+const char* MSG_BAR = "BAR";
+const char* MSG_BEAT = "BEAT";
+const char* MSG_DIV  = "DIV";
+const char* MSG_SUBDIV = "SDIV";
+const char* MSG_LEN   = "LEN";
+const int QUANTIZE_CAPTION_FONT_SIZE = 6;
+
+const int c_noteLenIdx_free = 0;
+const int c_noteLenIdx_lastNote = 1;
+const int c_noteLenIdx_ratioFrom = 2;
+const int c_quantizeIdx_lock = 0;
+
+
+
 PianoRoll::PianoRoll() :
 	m_nemStr( QVector<QString>() ),
 	m_noteEditMenu( NULL ),
 	m_semiToneMarkerMenu( NULL ),
 	m_zoomingModel(),
 	m_quantizeModel(),
+	m_quantize1Model(),
+	m_quantize2Model(),
+	m_quantize3Model(),
+	m_quantize4Model(),
 	m_noteLenModel(),
+	m_noteLen1Model(),
+	m_noteLen2Model(),
+	m_noteLen3Model(),
+	m_noteLen4Model(),
 	m_pattern( NULL ),
 	m_currentPosition(),
 	m_recording( false ),
@@ -353,45 +383,135 @@ PianoRoll::PianoRoll() :
 	connect( &m_zoomingModel, SIGNAL( dataChanged() ),
 					this, SLOT( zoomingChanged() ) );
 
+
+	static const QString quantizePixmap[] = {
+		"whole", "half", "quarter", "eighth",
+		"sixteenth", "thirtysecond", 
+		"triplethalf",
+		"tripletquarter", "tripleteighth",
+		"tripletsixteenth", "tripletthirtysecond"
+	} ;
+
+
 	// Set up quantization model
-	m_quantizeModel.addItem( tr( "Note lock" ) );
-	for( int i = 0; i <= NUM_EVEN_LENGTHS; ++i )
+	m_quantizeModel.addItem( tr( LOCK ) );
+	m_quantizeModel.addSeparator();
+	for( int i = 0; i < NUM_EVEN_LENGTHS; ++i )
 	{
-		m_quantizeModel.addItem( "1/" + QString::number( 1 << i ) );
+		PixmapLoader *loader = new PixmapLoader( "note_" + quantizePixmap[i] );
+		m_quantizeModel.addItem( "1/" + QString::number( 1 << i ), loader );
 	}
+	m_quantizeModel.addSeparator();
 	for( int i = 0; i < NUM_TRIPLET_LENGTHS; ++i )
 	{
-		m_quantizeModel.addItem( "1/" + QString::number( (1 << i) * 3 ) );
+		PixmapLoader *loader = new PixmapLoader( "note_" + quantizePixmap[i+NUM_EVEN_LENGTHS] );
+		m_quantizeModel.addItem( "1/" + QString::number( (1 << i) * 3 ), loader );
 	}
 	m_quantizeModel.addItem( "1/192" );
 	m_quantizeModel.setValue( m_quantizeModel.findText( "1/16" ) );
+	m_quantizeModel.addSeparator();
+
+	// TAG_QUANTIZE_OTHER
+	m_quantizeModel.addItem( "1/20" );
+
+	m_quantizeModelState_other.append( "1" );
+	m_quantizeModelState_other.append( "5" );
+	m_quantizeModelState_other.append( "4" );
+	m_quantizeModelState_other.append( "1" );
+
+	m_noteLenModelState_other.append( "1" );
+	m_noteLenModelState_other.append( "5" );
+	m_noteLenModelState_other.append( "4" );
+	m_noteLenModelState_other.append( "1" );
 
 	connect( &m_quantizeModel, SIGNAL( dataChanged() ),
 					this, SLOT( quantizeChanged() ) );
+	connect( &m_noteLenModel, SIGNAL( dataChanged() ),
+					this, SLOT( noteLenChanged() ) );
+
+	// initialize quantize[1-5]Model
+	m_quantize1Model.addItem( "1/3" );
+	m_quantize1Model.addItem( "1/2" );
+	for ( int i = 1; i<=19; i++ ) {
+		m_quantize1Model.addItem( QString::number( i ) );
+	}
+	for ( int i = 1; i<=19; i++ ) {
+		m_quantize2Model.addItem( QString::number( i ) );
+	}
+	for ( int i = 1; i<=19; i++ ) {
+		m_quantize3Model.addItem( QString::number( i ) );
+	}
+	for ( int i = 1; i<=19; i++ ) {
+		m_quantize4Model.addItem( QString::number( i ) );
+	}
+
+	m_quantize1Model.setValue( m_quantize1Model.findText( "1" ) );
+	m_quantize2Model.setValue( m_quantize2Model.findText( "4" ) );
+	m_quantize3Model.setValue( m_quantize3Model.findText( "4" ) );
+	m_quantize4Model.setValue( m_quantize4Model.findText( "1" ) );
+
+	updateNoteLenFromQuantization();
+
+	m_noteLen1Model.setValue( m_noteLen1Model.findText( "1" ) );
+	m_noteLen2Model.setValue( m_noteLen2Model.findText( "4" ) );
+	m_noteLen3Model.setValue( m_noteLen3Model.findText( "4" ) );
+	m_noteLen4Model.setValue( m_noteLen4Model.findText( "1" ) );
+
+	connect( &m_quantize1Model, SIGNAL( dataChanged() ),
+					this, SLOT( quantize123Changed() ) );
+	connect( &m_quantize2Model, SIGNAL( dataChanged() ),
+					this, SLOT( quantize123Changed() ) );
+	connect( &m_quantize3Model, SIGNAL( dataChanged() ),
+					this, SLOT( quantize123Changed() ) );
+	connect( &m_quantize4Model, SIGNAL( dataChanged() ),
+					this, SLOT( quantize123Changed() ) );
+
+
+	// Connect noteLen[12345]Model -> noteLen123Changed
+	connect( &m_noteLen1Model, SIGNAL( dataChanged() ),
+					this, SLOT( noteLen123Changed() ) );
+	connect( &m_noteLen2Model, SIGNAL( dataChanged() ),
+					this, SLOT( noteLen123Changed() ) );
+	connect( &m_noteLen3Model, SIGNAL( dataChanged() ),
+					this, SLOT( noteLen123Changed() ) );
+	connect( &m_noteLen4Model, SIGNAL( dataChanged() ),
+					this, SLOT( noteLen123Changed() ) );
 
 	// Set up note length model
-	m_noteLenModel.addItem( tr( "Last note" ),
+	m_noteLenModel.addItem( tr( MSG_FREE  ),
 					new PixmapLoader( "edit_draw" ) );
-	const QString pixmaps[] = { "whole", "half", "quarter", "eighth",
-						"sixteenth", "thirtysecond", "triplethalf",
-						"tripletquarter", "tripleteighth",
-						"tripletsixteenth", "tripletthirtysecond" } ;
+	m_noteLenModel.addItem( tr( MSG_LAST_NOTE ),
+					new PixmapLoader( "edit_draw" ) );
+	m_noteLenModel.addSeparator();
+
+
+	static const QString noteLenPixmap[] = {
+		"whole", "half", "quarter", "eighth",
+		"sixteenth", "thirtysecond", 
+		"triplethalf",
+		"tripletquarter", "tripleteighth",
+		"tripletsixteenth", "tripletthirtysecond"
+	} ;
 
 	for( int i = 0; i < NUM_EVEN_LENGTHS; ++i )
 	{
-		PixmapLoader *loader = new PixmapLoader( "note_" + pixmaps[i] );
+		PixmapLoader *loader = new PixmapLoader( "note_" + noteLenPixmap[i] );
 		m_noteLenModel.addItem( "1/" + QString::number( 1 << i ), loader );
 	}
+	m_noteLenModel.addSeparator();
+
 	for( int i = 0; i < NUM_TRIPLET_LENGTHS; ++i )
 	{
-		PixmapLoader *loader = new PixmapLoader( "note_" + pixmaps[i+NUM_EVEN_LENGTHS] );
+		PixmapLoader *loader = new PixmapLoader( "note_" + noteLenPixmap[i+NUM_EVEN_LENGTHS] );
 		m_noteLenModel.addItem( "1/" + QString::number( (1 << i) * 3 ), loader );
+		// m_noteLenModel.addSeparator();
 	}
-	m_noteLenModel.setValue( 0 );
+	m_noteLenModel.addSeparator();
+	// TAG_QUANTIZE_OTHER
+	m_noteLenModel.addItem( OTHER );
+	m_noteLenModel.setValue( c_noteLenIdx_free );
 
-	// Note length change can cause a redraw if Q is set to lock
-	connect( &m_noteLenModel, SIGNAL( dataChanged() ),
-					this, SLOT( quantizeChanged() ) );
+
 
 	// Set up scale model
 	const InstrumentFunctionNoteStacking::ChordTable& chord_table =
@@ -659,6 +779,7 @@ void PianoRoll::setCurrentPattern( Pattern* newPattern )
 	connect( m_pattern->instrumentTrack(), SIGNAL( midiNoteOn( const Note& ) ), this, SLOT( startRecordNote( const Note& ) ) );
 	connect( m_pattern->instrumentTrack(), SIGNAL( midiNoteOff( const Note& ) ), this, SLOT( finishRecordNote( const Note& ) ) );
 	connect( m_pattern->instrumentTrack()->pianoModel(), SIGNAL( dataChanged() ), this, SLOT( update() ) );
+	// connect( m_pattern->instrumentTrack()->pianoModel(), SIGNAL( dataChanged() ), this, SLOT( noteLenChanged() ) );
 
 	update();
 	emit currentPatternChanged();
@@ -944,6 +1065,7 @@ void PianoRoll::clearSelectedNotes()
 		{
 			note->setSelected( false );
 		}
+		updateNoteLenFromSelectedNote();
 	}
 }
 
@@ -1702,6 +1824,8 @@ void PianoRoll::mousePressEvent(QMouseEvent * me )
 			}
 		}
 	}
+
+	updateNoteLenFromSelectedNote();
 }
 
 
@@ -1902,6 +2026,7 @@ void PianoRoll::computeSelectedNotes(bool shift)
 
 	removeSelection();
 	update();
+	updateNoteLenFromSelectedNote();
 }
 
 
@@ -1987,6 +2112,8 @@ void PianoRoll::mouseReleaseEvent( QMouseEvent * me )
 
 void PianoRoll::mouseMoveEvent( QMouseEvent * me )
 {
+	// FIXME 
+	// printf( "void PianoRoll::mouseMoveEvent( QMouseEvent * me )\n" );
 	if( ! hasValidPattern() )
 	{
 		update();
@@ -2591,6 +2718,59 @@ int PianoRoll::xCoordOfTick(int tick )
 		* m_ppt / MidiTime::ticksPerTact() );
 }
 
+
+inline void reduceFraction( double & numer, double & denom )
+{
+	int n = numer* 100;
+	int d = denom* 100;
+	for ( int i=2; i< 19; i++ )
+	{
+		for(;;)
+		{
+			if ( n % i == 0 && d % i == 0 )
+			{
+				n /= i;
+				d /= i;
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+	numer = n;
+	denom = d;
+}
+
+
+
+inline double text1ToDouble( QString text1 ) {
+	if ( text1 == " " )
+		return 0.0;
+
+	double result;
+	if ( text1.contains( "/" ) )
+	{
+		double numer = text1.mid( 0, text1.indexOf( "/" )     ).toDouble();
+		double denom = text1.mid(    text1.indexOf( "/" ) + 1 ).toDouble();
+		if ( abs( denom ) < 0.02 )
+			result = 0;
+		else
+			result = numer / denom;
+	}
+	else
+	{
+		result = text1.toDouble();
+	}
+	return result == 0.0 ? 1.0 : result;
+}
+inline double text234ToDouble( QString text234 ) {
+	if ( text234 == " " )
+		return 0.0;
+
+	return text234.toDouble();
+}
+
 void PianoRoll::paintEvent(QPaintEvent * pe )
 {
 	bool drawNoteNames = ConfigManager::inst()->value( "ui", "printnotelabels").toInt();
@@ -2896,28 +3076,54 @@ void PianoRoll::paintEvent(QPaintEvent * pe )
 			++key;
 		}
 
+		double barsPerTact;
+		if ( m_quantizeModel.value() != c_quantizeIdx_lock )
+		{
+			QString text1 = m_quantize1Model.currentText();
+			barsPerTact = text1ToDouble( text1 );
+		}
+		else
+		{
+			barsPerTact = 1;
+		}
+
+
 
 		// Draw alternating shades on bars
-		float timeSignature = static_cast<float>( Engine::getSong()->getTimeSigModel().getNumerator() )
-				/ static_cast<float>( Engine::getSong()->getTimeSigModel().getDenominator() );
+		// FIXME 
+		// This routine supporsed to be implemented by calling xCoordOfTick().
+		// m_ppt should not be incrementing value for the loop.
 		float zoomFactor = m_zoomLevels[m_zoomingModel.value()];
 		//the bars which disappears at the left side by scrolling
 		int leftBars = m_currentPosition * zoomFactor / MidiTime::ticksPerTact();
+		// Get the offset position for the left side alternating shades
+		int offset = m_currentPosition * m_ppt / MidiTime::ticksPerTact();
 
-		//iterates the visible bars and draw the shading on uneven bars
-		for( int x = WHITE_KEY_WIDTH, barCount = leftBars; x < width() + m_currentPosition * zoomFactor / timeSignature; x += m_ppt, ++barCount )
+		for( int x = WHITE_KEY_WIDTH, barCount = leftBars; x < width() + offset; x += m_ppt, ++barCount )
 		{
 			if( ( barCount + leftBars )  % 2 != 0 )
 			{
-				p.fillRect( x - m_currentPosition * zoomFactor / timeSignature, PR_TOP_MARGIN, m_ppt,
-					height() - ( PR_BOTTOM_MARGIN + PR_TOP_MARGIN ), backgroundShade() );
+				p.fillRect( 
+					x - offset, PR_TOP_MARGIN, m_ppt, 
+					height() - ( PR_BOTTOM_MARGIN + PR_TOP_MARGIN ),
+					backgroundShade() );
 			}
 		}
 
 
 		// Draw the vertical beat lines
-		int ticksPerBeat = DefaultTicksPerTact /
-			Engine::getSong()->getTimeSigModel().getDenominator();
+		// int ticksPerBeat = DefaultTicksPerTact /
+		// 	Engine::getSong()->getTimeSigModel().getDenominator();
+
+		int ticksPerBeat;
+		{
+			int d = m_quantize2Model.currentText().toInt();
+			if ( d == 0 )
+				d = 1;
+			ticksPerBeat = DefaultTicksPerTact / d;
+		}
+		ticksPerBeat = barsPerTact * ticksPerBeat;
+ 
 
 		for( tick = m_currentPosition - m_currentPosition % ticksPerBeat,
 			x = xCoordOfTick( tick ); x <= width();
@@ -2928,9 +3134,9 @@ void PianoRoll::paintEvent(QPaintEvent * pe )
 		}
 
 		// Draw the vertical bar lines
-		for( tick = m_currentPosition - m_currentPosition % MidiTime::ticksPerTact(),
+		for( tick = m_currentPosition - m_currentPosition % ((int) (MidiTime::ticksPerTact() * barsPerTact) ),
 			x = xCoordOfTick( tick ); x <= width();
-			tick += MidiTime::ticksPerTact(), x = xCoordOfTick( tick ) )
+			tick += (int)(MidiTime::ticksPerTact() * barsPerTact), x = xCoordOfTick( tick ) )
 		{
 			p.setPen( barLineColor() );
 			p.drawLine( x, PR_TOP_MARGIN, x, height() - PR_BOTTOM_MARGIN );
@@ -3303,8 +3509,10 @@ void PianoRoll::wheelEvent(QWheelEvent * we )
 	else if( we->modifiers() & Qt::ShiftModifier
 			 || we->orientation() == Qt::Horizontal )
 	{
+		// m_leftRightScroll->setValue( m_leftRightScroll->value() -
+		// 					we->delta() * 2 / 15 );
 		m_leftRightScroll->setValue( m_leftRightScroll->value() -
-							we->delta() * 2 / 15 );
+							we->delta() * 2 * ( DefaultPPQN / DefaultPPQN_old )  /  16 );
 	}
 	else
 	{
@@ -3618,6 +3826,7 @@ void PianoRoll::selectNotesOnKey()
 				note->setSelected(true);
 			}
 		}
+		updateNoteLenFromSelectedNote();
 	}
 }
 
@@ -3771,6 +3980,8 @@ void PianoRoll::pasteNotes()
 			m_pattern->addNote( cur_note, false );
 		}
 
+		updateNoteLenFromSelectedNote();
+
 		// we only have to do the following lines if we pasted at
 		// least one note...
 		Engine::getSong()->setModified();
@@ -3895,32 +4106,510 @@ void PianoRoll::zoomingChanged()
 }
 
 
+/////////////////
 
+int calcNoteLen( 
+		int ticksPerTact,
+		double q1, // a nominator   as bar 
+		double q2, // a denominator as beat 
+		double q3, // a denominator as div 
+		double q4, // a denominator as subdiv 
+		int n1,    // a multiplier as bar 
+		int n2,    // a multiplier as beat 
+		int n3,    // a multiplier as div 
+		int n4     // a multiplier as subdiv 
+		)
+{
+	return 
+		(              ( ((double)ticksPerTact) * q1 /  1 )                * n1 ) +
+		( q2 < 2 ? 0 : ( ((double)ticksPerTact) * q1 /  1 / q2 )           * n2 ) +
+		( q3 < 2 ? 0 : ( ((double)ticksPerTact) * q1 /  1 / q2 / q3 )      * n3 ) +
+		( q4 < 2 ? 0 : ( ((double)ticksPerTact) * q1 /  1 / q2 / q3 / q4 ) * n4 ) +
+		0;
+}
+
+
+#define SET_QUANTIZE1234_BY_STR(p1,p2,p3,p4)\
+		m_quantize1Model.setValue( m_quantize1Model.findText( p1 ) );\
+		m_quantize2Model.setValue( m_quantize2Model.findText( p2 ) );\
+		m_quantize3Model.setValue( m_quantize3Model.findText( p3 ) );\
+		m_quantize4Model.setValue( m_quantize4Model.findText( p4 ) );\
+		updateNoteLenFromQuantization();
+
+#define SET_NOTELEN1234_BY_STR(p1,p2,p3,p4)\
+		m_noteLen1Model.setValue( m_noteLen1Model.findText( p1 ) );\
+		m_noteLen2Model.setValue( m_noteLen2Model.findText( p2 ) );\
+		m_noteLen3Model.setValue( m_noteLen3Model.findText( p3 ) );\
+		m_noteLen4Model.setValue( m_noteLen4Model.findText( p4 ) );
+
+
+bool noteLenIsChanging = false;
+bool quantizeIsChanging = false;
 
 void PianoRoll::quantizeChanged()
 {
+	if ( ! quantizeIsChanging )
+	{
+		quantizeIsChanging = true;
+
+		if ( m_quantizeModel.value() == c_quantizeIdx_lock )
+		{
+			if ( m_noteLenModel.value() < c_noteLenIdx_ratioFrom )
+			{
+				m_quantize1Model.setValue( -1 );
+				m_quantize2Model.setValue( -1 );
+				m_quantize3Model.setValue( -1 );
+				m_quantize4Model.setValue( -1 );
+			}
+			else
+			{
+				m_quantize1Model.setValue( m_noteLen1Model.value() );
+				m_quantize2Model.setValue( m_noteLen2Model.value() );
+				m_quantize3Model.setValue( m_noteLen3Model.value() );
+				m_quantize4Model.setValue( m_noteLen4Model.value() );
+			}
+		}
+		else if ( m_quantizeModel.value() == m_quantizeModel.size()-1 )
+		{
+			if ( m_quantizeModelState_other.isEmpty() )
+			{
+				// Ignore.
+			}
+			else
+			{
+				SET_QUANTIZE1234_BY_STR(
+						m_quantizeModelState_other[0],
+						m_quantizeModelState_other[1],
+						m_quantizeModelState_other[2],
+						m_quantizeModelState_other[3] )
+			}
+		} else {
+
+			QString text = m_quantizeModel.currentText();
+			int i = text.right( text.length() - 2 ).toInt();
+			if ( i == 192 ) {
+				// 192 %3 == 0 and 192 % 4 == 0 ,too
+				SET_QUANTIZE1234_BY_STR( "1","4","4","12" );
+			} else if ( i % 3 == 0 ) {
+				// IMHO if you say 1/3 or 1/6, you usually want it to be 3 time. 
+				// Otherwise you usually consider it to be 4 time swing.
+				if ( i ==3 || i == 6 ) {
+					SET_QUANTIZE1234_BY_STR( "1","3", QString::number( i / 3 ), "1" );
+				} else {
+					SET_QUANTIZE1234_BY_STR( "1","4", QString::number( i / 4 ),"1" );
+				}
+			} else {
+				if ( i ==1 || i == 2 ) {
+					SET_QUANTIZE1234_BY_STR( "1",QString::number( i ), "1" ,"1" );
+				} else if ( i <= 16 ) {
+					SET_QUANTIZE1234_BY_STR( "1","4", QString::number( i / 4 ),"1" );
+				} else {
+					SET_QUANTIZE1234_BY_STR( "1","4", "4", QString::number( i / 16 ) );
+				}
+			}
+		}
+
+		updateNoteLenFromQuantization();
+
+		quantizeIsChanging = false;
+	}
+
 	update();
 }
 
 
+// Generate readable string caption from bar, beat, div and subdiv.
+inline QString generateQuantizeString(
+	QString quantizeText1, QString quantizeText2, QString quantizeText3, QString quantizeText4 )
+{
+	double quantNumer = 	text1ToDouble(   quantizeText1 );
+	double quantDenom = 	text234ToDouble( quantizeText2 ) *
+							text234ToDouble( quantizeText3 ) *
+							text234ToDouble( quantizeText4 );
+
+	QString strNumer = QString::number( quantNumer );
+
+	if ( strNumer == "0" )
+		return "0";
+	
+	if ( 2 < strNumer.length() )
+		strNumer = strNumer.mid( 0, 2 );
+
+	return strNumer + "/" + QString::number( quantDenom );
+}
+
+
+inline QString PianoRoll::quantizeByString()
+{
+	return	generateQuantizeString( 
+				m_quantize1Model.currentText(),
+				m_quantize2Model.currentText(),
+				m_quantize3Model.currentText(),
+				m_quantize4Model.currentText()
+			);
+}
+
+void PianoRoll::quantize123Changed()
+{
+	if ( ! quantizeIsChanging ) {
+		quantizeIsChanging = true;
+
+		QString ratioString = quantizeByString();
+
+		int idx = m_quantizeModel.findText( ratioString );
+		if ( 0<=idx )
+		{
+			// TAG_QUANTIZE_OTHER
+			m_quantizeModel.setValue( idx );
+		}
+		else
+		{
+			// TAG_QUANTIZE_OTHER
+			int lastIndex = m_quantizeModel.size() -1;
+			m_quantizeModel.setItemText( lastIndex, ratioString );
+			m_quantizeModel.setValue( lastIndex );
+
+			// Store the current state of the set of ComboBox'es
+			m_quantizeModelState_other.clear();
+			m_quantizeModelState_other.append( m_quantize1Model.currentText() );
+			m_quantizeModelState_other.append( m_quantize2Model.currentText() );
+			m_quantizeModelState_other.append( m_quantize3Model.currentText() );
+			m_quantizeModelState_other.append( m_quantize4Model.currentText() );
+		}
+
+		updateNoteLenFromQuantization();
+
+		quantizeIsChanging = false;
+	}
+
+	update();
+}
+
+// Initialize noteLen[12345]Model
+void PianoRoll::updateNoteLenModel( int i1, int i2, int i3, int i4 )
+{
+	if ( ! noteLenIsChanging )
+	{
+		// Supress update noteLenComboBox
+		noteLenIsChanging  = true;
+
+		int v1 = m_noteLen1Model.value();
+		int v2 = m_noteLen2Model.value();
+		int v3 = m_noteLen3Model.value();
+		int v4 = m_noteLen4Model.value();
+
+		m_noteLen1Model.clear();
+		m_noteLen1Model.addItem( " " );
+		for ( int i=1; i<=i1; i++ )
+			m_noteLen1Model.addItem( QString::number( i ) );
+
+		m_noteLen2Model.clear();
+		m_noteLen2Model.addItem( " " );
+		for ( int i=1; i<=i2; i++ )
+			m_noteLen2Model.addItem( QString::number( i ) );
+
+		m_noteLen3Model.clear();
+		m_noteLen3Model.addItem( " " );
+		for ( int i=1; i<=i3; i++ )
+			m_noteLen3Model.addItem( QString::number( i ) );
+
+		m_noteLen4Model.clear();
+		m_noteLen4Model.addItem( " " );
+		for ( int i=1; i<=i4; i++ )
+			m_noteLen4Model.addItem( QString::number( i ) );
+
+		 m_noteLen1Model.setValue( v1 );
+		 m_noteLen2Model.setValue( v2 );
+		 m_noteLen3Model.setValue( v3 );
+		 m_noteLen4Model.setValue( v4 );
+
+		noteLenIsChanging = false;
+	}
+}
+
+
+// This function is called from both quantize123Changed() and quantizeChanged()
+void PianoRoll::updateNoteLenFromQuantization()
+{
+	updateNoteLenModel(
+			4,
+			m_quantize2Model.currentText().toInt() * 2,
+			m_quantize3Model.currentText().toInt() * 2,
+			m_quantize4Model.currentText().toInt() * 2
+		);
+}
+
+std::vector<int> lookupNoteLength( int barLen0, int noteLen0, 
+		double q1, 
+		double q2, 
+		double q3, 
+		double q4 
+		)
+{
+	// Search the appropriate bar/beat/div/subdiv.
+	const int c_noteLenThreshold = 3;
+	const int m1 = 4;
+	const int m2 = q2;
+	const int m3 = q3;
+	const int m4 = q4;
+
+	for ( int n1=0; n1<m1; n1++ )
+	{
+		for ( int n2=0; n2<m2; n2++ )
+		{
+			for ( int n3=0; n3<m3; n3++ )
+			{
+				for ( int n4=0; n4<m4; n4++ )
+				{
+					int noteLen1 = calcNoteLen( barLen0 , q1,q2,q3,q4, n1,n2,n3,n4 );
+					if ( abs( noteLen0 - noteLen1 ) < c_noteLenThreshold )
+					{
+						std::vector<int> foundVector = { 0, n1,n2,n3,n4 };
+						return foundVector;
+					}
+				}
+			}
+		}
+	}
+
+	return std::vector<int>();
+}
+
+void PianoRoll::updateNoteLenFromSelectedNote()
+{
+	if ( m_noteLenModel.value() == c_noteLenIdx_lastNote )
+	{
+
+		if ( ! noteLenIsChanging ) {
+			noteLenIsChanging = true;
+
+			int preferableBeatNumber = m_quantize2Model.currentText().toInt();
+			if ( preferableBeatNumber < 1 )
+				preferableBeatNumber = 4;
+
+			std::vector<int> nnlRatio = lookupNoteLength(
+				DefaultTicksPerTact, 
+				newNoteLen().getTicks(),
+				text1ToDouble(   m_quantize1Model.currentText() ),
+				text234ToDouble( m_quantize2Model.currentText() ),
+				text234ToDouble( m_quantize3Model.currentText() ),
+				text234ToDouble( m_quantize4Model.currentText() )
+			 );
+
+			if ( ! nnlRatio.empty() )
+			{
+				SET_NOTELEN1234_BY_STR( 
+						QString::number( nnlRatio[1] ) ,
+						QString::number( nnlRatio[2] ) ,
+						QString::number( nnlRatio[3] ) ,
+						QString::number( nnlRatio[4] )
+						);
+			}
+			else
+			{
+				m_noteLen1Model.setValue( 0 );
+				m_noteLen2Model.setValue( 0 );
+				m_noteLen3Model.setValue( 0 );
+				m_noteLen4Model.setValue( 0 );
+			}
+
+			noteLenIsChanging = false;
+		}
+	}
+}
+
+void PianoRoll::noteLenChanged()
+{
+	if ( ! noteLenIsChanging ) {
+		noteLenIsChanging = true;
+
+		if ( m_noteLenModel.value() == c_noteLenIdx_lastNote )
+		{
+			updateNoteLenFromSelectedNote();
+		}
+		else
+		{
+			QString text = m_noteLenModel.currentText();
+			int i = text.right( text.length() - 2 ).toInt();
+
+			switch ( i )
+			{
+				case 1:
+					SET_QUANTIZE1234_BY_STR( "1","4","4","1" );
+					SET_NOTELEN1234_BY_STR(  "1"," "," "," " );
+					break;
+				case 2:
+					SET_QUANTIZE1234_BY_STR( "1","4","4","1" );
+					SET_NOTELEN1234_BY_STR(  " ","2"," "," " );
+					break;
+				case 4:
+					SET_QUANTIZE1234_BY_STR( "1","4","4","1" );
+					SET_NOTELEN1234_BY_STR(  " ","1"," "," " );
+					break;
+				case 8:
+					SET_QUANTIZE1234_BY_STR( "1","4","4","1" );
+					SET_NOTELEN1234_BY_STR(  " "," ","2"," " );
+					break;
+				case 16:
+					SET_QUANTIZE1234_BY_STR( "1","4","4","1" );
+					SET_NOTELEN1234_BY_STR(  " "," ","1"," " );
+					break;
+				case 32:
+					SET_QUANTIZE1234_BY_STR( "1","4","4","2" );
+					SET_NOTELEN1234_BY_STR(  " "," "," ","1" );
+					break;
+				case 192:
+					SET_QUANTIZE1234_BY_STR( "1","4","4","12" );
+					SET_NOTELEN1234_BY_STR(  " "," "," ", "1" );
+					break;
+
+				case 3:
+					SET_QUANTIZE1234_BY_STR( "1","3","4","1" );
+					SET_NOTELEN1234_BY_STR(  " ","1"," "," " );
+					break;
+				case 6:
+					SET_QUANTIZE1234_BY_STR( "1","3","4","1" );
+					SET_NOTELEN1234_BY_STR(  " "," ","2"," " );
+					break;
+				case 12:
+					SET_QUANTIZE1234_BY_STR( "1","3","4","1" );
+					SET_NOTELEN1234_BY_STR(  " "," ","1"," " );
+					break;
+				case 24:
+					SET_QUANTIZE1234_BY_STR( "1","3","4","2" );
+					SET_NOTELEN1234_BY_STR(  " "," "," ","1" );
+					break;
+				case 48:
+					SET_QUANTIZE1234_BY_STR( "1","3","4","4" );
+					SET_NOTELEN1234_BY_STR(  " "," "," ","1" );
+					break;
+				default :
+					SET_QUANTIZE1234_BY_STR( "1","4","4","1" );
+					SET_NOTELEN1234_BY_STR(  " ","1"," "," " );
+			}
+		}
+
+		noteLenIsChanging = false;
+	}
+}
+
+inline QString generateNoteLenString(
+	QString quantizeText1, QString quantizeText2,
+	QString quantizeText3, QString quantizeText4,
+	QString noteLenText1, QString noteLenText2,
+	QString noteLenText3, QString noteLenText4 )
+{
+	double quantValue1 = text1ToDouble(   quantizeText1 );
+	double quantValue2 = text234ToDouble( quantizeText2 );
+	double quantValue3 = text234ToDouble( quantizeText3 );
+	double quantValue4 = text234ToDouble( quantizeText4 );
+
+	double quantNumer = quantValue1;
+	double quantDenom = quantValue2 * quantValue3 * quantValue4;
+
+	double noteLenValue1 = text1ToDouble(   noteLenText1 );
+	double noteLenValue2 = text234ToDouble( noteLenText2 );
+	double noteLenValue3 = text234ToDouble( noteLenText3 );
+	double noteLenValue4 = text234ToDouble( noteLenText4 );
+
+	double resultNumer = 
+		quantNumer *
+		(
+			( noteLenValue1 * quantValue2 * quantValue3 * quantValue4 * 1 ) +
+			( noteLenValue2 *               quantValue3 * quantValue4 * 1 ) +
+			( noteLenValue3 *                             quantValue4 * 1 ) +
+			( noteLenValue4                                           * 1 ) 
+		);
+
+	double resultDenom = quantDenom;
+
+	reduceFraction( resultNumer, resultDenom );
+
+	QString strNumer = QString::number( resultNumer );
+	QString strDenom = QString::number( resultDenom );
+
+	if ( strNumer == "0" )
+		return "0";
+	
+	if ( 2 < strNumer.length() )
+		strNumer = strNumer.mid( 0, 2 );
+
+	return strNumer + "/" + strDenom;
+}
+
+inline QString PianoRoll::noteLenByString()
+{
+	return	generateNoteLenString( 
+				m_quantize1Model.currentText(),
+				m_quantize2Model.currentText(),
+				m_quantize3Model.currentText(),
+				m_quantize4Model.currentText(),
+				m_noteLen1Model.currentText(),
+				m_noteLen2Model.currentText(),
+				m_noteLen3Model.currentText(),
+				m_noteLen4Model.currentText()
+			);
+}
+void PianoRoll::noteLen123Changed()
+{
+	if ( ! noteLenIsChanging ) {
+		noteLenIsChanging = true;
+
+		// Update noteLenModel
+		QString ratioString = noteLenByString();
+
+		int idx = m_noteLenModel.findText( ratioString );
+		if ( 0<=idx )
+		{
+			m_noteLenModel.setValue( idx );
+		}
+		else
+		{
+			// TAG_QUANTIZE_OTHER
+			int lastIndex = m_noteLenModel.size() -1;
+			m_noteLenModel.setItemText( lastIndex, ratioString );
+			m_noteLenModel.setValue( lastIndex );
+
+			// Store the current state of the set of ComboBox'es
+			m_noteLenModelState_other.clear();
+			m_noteLenModelState_other.append( m_noteLen1Model.currentText() );
+			m_noteLenModelState_other.append( m_noteLen2Model.currentText() );
+			m_noteLenModelState_other.append( m_noteLen3Model.currentText() );
+			m_noteLenModelState_other.append( m_noteLen4Model.currentText() );
+		}
+
+		noteLenIsChanging = false;
+	}
+
+	update();
+}
 
 
 int PianoRoll::quantization() const
 {
-	if( m_quantizeModel.value() == 0 )
+	if( m_quantizeModel.value() == c_quantizeIdx_lock )
 	{
-		if( m_noteLenModel.value() > 0 )
+		if( m_noteLenModel.value() >= c_noteLenIdx_lastNote )
 		{
 			return newNoteLen();
 		}
 		else
 		{
-			return DefaultTicksPerTact / 16;
+			return DefaultTicksPerTact / 16; // ?
 		}
 	}
 
-	QString text = m_quantizeModel.currentText();
-	return DefaultTicksPerTact / text.right( text.length() - 2 ).toInt();
+	QString text1 = m_quantize1Model.currentText();
+	QString text2 = m_quantize2Model.currentText();
+	QString text3 = m_quantize3Model.currentText();
+	QString text4 = m_quantize4Model.currentText();
+
+	double i1 = text1ToDouble( text1 );
+	double i2 = text234ToDouble( text2 );
+	double i3 = text234ToDouble( text3 );
+	double i4 = text234ToDouble( text4 );
+
+	return ( DefaultTicksPerTact * i1 ) / i2 / i3 / i4;
 }
 
 
@@ -3982,13 +4671,35 @@ void PianoRoll::updateSemiToneMarkerMenu()
 
 MidiTime PianoRoll::newNoteLen() const
 {
-	if( m_noteLenModel.value() == 0 )
+	if ( m_noteLenModel.value() == c_noteLenIdx_lastNote )
 	{
 		return m_lenOfNewNotes;
 	}
+	else
+	{
+		QString qtext1 = m_quantize1Model.currentText();
+		QString qtext2 = m_quantize2Model.currentText();
+		QString qtext3 = m_quantize3Model.currentText();
+		QString qtext4 = m_quantize4Model.currentText();
 
-	QString text = m_noteLenModel.currentText();
-	return DefaultTicksPerTact / text.right( text.length() - 2 ).toInt();
+		double q1 = text1ToDouble(   qtext1 );
+		double q2 = text234ToDouble( qtext2 );
+		double q3 = text234ToDouble( qtext3 );
+		double q4 = text234ToDouble( qtext4 );
+
+		QString ntext1 = m_noteLen1Model.currentText();
+		QString ntext2 = m_noteLen2Model.currentText();
+		QString ntext3 = m_noteLen3Model.currentText();
+		QString ntext4 = m_noteLen4Model.currentText();
+
+		int n1 = ntext1.toInt();
+		int n2 = ntext2.toInt();
+		int n3 = ntext3.toInt();
+		int n4 = ntext4.toInt();
+
+		return
+			calcNoteLen( DefaultTicksPerTact , q1,q2,q3,q4,n1,n2,n3,n4 );
+	}
 }
 
 
@@ -4039,8 +4750,8 @@ Note * PianoRoll::noteUnderMouse()
 
 
 PianoRollWindow::PianoRollWindow() :
-	Editor(true),
-	m_editor(new PianoRoll())
+	Editor( true ),
+	m_editor( new PianoRoll() )
 {
 	setCentralWidget( m_editor );
 
@@ -4190,34 +4901,156 @@ PianoRollWindow::PianoRollWindow() :
 
 	DropToolBar *zoomAndNotesToolBar = addDropToolBarToTop( tr( "Zoom and note controls" ) );
 
-	QLabel * zoom_lbl = new QLabel( m_toolBar );
-	zoom_lbl->setPixmap( embed::getIconPixmap( "zoom" ) );
+	{
+		QLabel * zoom_lbl = new QLabel( m_toolBar );
+		zoom_lbl->setPixmap( embed::getIconPixmap( "zoom" ) );
 
-	m_zoomingComboBox = new ComboBox( m_toolBar );
-	m_zoomingComboBox->setModel( &m_editor->m_zoomingModel );
-	m_zoomingComboBox->setFixedSize( 64, 22 );
+		m_zoomingComboBox = new ComboBox2( m_toolBar );
+		m_zoomingComboBox->setModel( &m_editor->m_zoomingModel );
+		m_zoomingComboBox->setFixedSize( 64, 22 );
 
-	// setup quantize-stuff
-	QLabel * quantize_lbl = new QLabel( m_toolBar );
-	quantize_lbl->setPixmap( embed::getIconPixmap( "quantize" ) );
+		zoomAndNotesToolBar->addWidget( zoom_lbl );
+		zoomAndNotesToolBar->addWidget( m_zoomingComboBox );
+	}
 
-	m_quantizeComboBox = new ComboBox( m_toolBar );
-	m_quantizeComboBox->setModel( &m_editor->m_quantizeModel );
-	m_quantizeComboBox->setFixedSize( 64, 22 );
+	{
+		const int comboBoxHeight = 22;
+		const int comboBoxWidth1 = 58;
+		const int comboBoxWidth2 = 24;
 
-	// setup note-len-stuff
-	QLabel * note_len_lbl = new QLabel( m_toolBar );
-	note_len_lbl->setPixmap( embed::getIconPixmap( "note" ) );
+		// setup quantize-stuff
+		QLabel * quantize_lbl = new QLabel( m_toolBar );
+		quantize_lbl->setPixmap( embed::getIconPixmap( "quantize" ) );
 
-	m_noteLenComboBox = new ComboBox( m_toolBar );
-	m_noteLenComboBox->setModel( &m_editor->m_noteLenModel );
-	m_noteLenComboBox->setFixedSize( 105, 22 );
+		m_quantizeComboBox = new ComboBox2( m_toolBar );
+		m_quantizeComboBox->setModel( &m_editor->m_quantizeModel );
+		m_quantizeComboBox->setFixedSize( comboBoxWidth1, comboBoxHeight );
+
+		QLabel * quantize1_lbl = new QLabel( m_toolBar );
+		quantize1_lbl->setText( MSG_BAR );
+		QFont qf1( "Arial", QUANTIZE_CAPTION_FONT_SIZE, QFont::Bold);
+		quantize1_lbl->setFont( qf1 );
+
+		m_quantize1ComboBox = new ComboBox2( m_toolBar );
+		m_quantize1ComboBox->setModel( &m_editor->m_quantize1Model );
+		m_quantize1ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
+
+		QLabel * quantize2_lbl = new QLabel( m_toolBar );
+		quantize2_lbl->setText( MSG_BEAT  );
+		QFont qf2( "Arial", QUANTIZE_CAPTION_FONT_SIZE, QFont::Bold);
+		quantize2_lbl->setFont( qf2 );
+
+		m_quantize2ComboBox = new ComboBox2( m_toolBar );
+		m_quantize2ComboBox->setModel( &m_editor->m_quantize2Model );
+		m_quantize2ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
+
+		QLabel * quantize3_lbl = new QLabel( m_toolBar );
+		quantize3_lbl->setText( MSG_DIV );
+		QFont qf3( "Arial", QUANTIZE_CAPTION_FONT_SIZE, QFont::Bold);
+		quantize3_lbl->setFont( qf3 );
+
+		m_quantize3ComboBox = new ComboBox2( m_toolBar );
+		m_quantize3ComboBox->setModel( &m_editor->m_quantize3Model );
+		m_quantize3ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
+
+		QLabel * quantize4_lbl = new QLabel( m_toolBar );
+		quantize4_lbl->setText( MSG_SUBDIV );
+		QFont qf4( "Arial", QUANTIZE_CAPTION_FONT_SIZE, QFont::Bold);
+		quantize4_lbl->setFont( qf4 );
+
+		m_quantize4ComboBox = new ComboBox2( m_toolBar );
+		m_quantize4ComboBox->setModel( &m_editor->m_quantize4Model );
+		m_quantize4ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
+
+
+		zoomAndNotesToolBar->addSeparator();
+		zoomAndNotesToolBar->addWidget( quantize_lbl );
+		zoomAndNotesToolBar->addWidget( m_quantizeComboBox );
+
+		zoomAndNotesToolBar->addSeparator();
+		zoomAndNotesToolBar->addWidget( quantize1_lbl );
+		zoomAndNotesToolBar->addWidget( m_quantize1ComboBox );
+		zoomAndNotesToolBar->addWidget( quantize2_lbl );
+		zoomAndNotesToolBar->addWidget( m_quantize2ComboBox );
+		zoomAndNotesToolBar->addWidget( quantize3_lbl );
+		zoomAndNotesToolBar->addWidget( m_quantize3ComboBox );
+		zoomAndNotesToolBar->addWidget( quantize4_lbl );
+		zoomAndNotesToolBar->addWidget( m_quantize4ComboBox );
+	}
+
+
+
+	{
+		const int comboBoxHeight = 22;
+		const int comboBoxWidth1 = 58;
+		const int comboBoxWidth2 = 24;
+
+		// setup note-len-stuff
+		QLabel * note_len_lbl = new QLabel( m_toolBar );
+		note_len_lbl->setPixmap( embed::getIconPixmap( "note" ) );
+
+		m_noteLenComboBox = new ComboBox2( m_toolBar );
+		m_noteLenComboBox->setModel( &m_editor->m_noteLenModel );
+		m_noteLenComboBox->setFixedSize( comboBoxWidth1, comboBoxHeight );
+
+		QLabel * noteLen1_lbl = new QLabel( m_toolBar );
+		noteLen1_lbl->setText( MSG_BAR );
+		QFont nf1( "Arial", QUANTIZE_CAPTION_FONT_SIZE, QFont::Bold);
+		noteLen1_lbl->setFont( nf1 );
+
+		m_noteLen1ComboBox = new ComboBox2( m_toolBar );
+		m_noteLen1ComboBox->setModel( &m_editor->m_noteLen1Model );
+		m_noteLen1ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
+
+		QLabel * noteLen2_lbl = new QLabel( m_toolBar );
+		noteLen2_lbl->setText( MSG_BEAT );
+		QFont nf2( "Arial", QUANTIZE_CAPTION_FONT_SIZE, QFont::Bold);
+		noteLen2_lbl->setFont( nf2 );
+
+		m_noteLen2ComboBox = new ComboBox2( m_toolBar );
+		m_noteLen2ComboBox->setModel( &m_editor->m_noteLen2Model );
+		m_noteLen2ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
+
+
+		QLabel * noteLen3_lbl = new QLabel( m_toolBar );
+		noteLen3_lbl->setText( MSG_DIV );
+		QFont nf3( "Arial", QUANTIZE_CAPTION_FONT_SIZE, QFont::Bold);
+		noteLen3_lbl->setFont( nf3 );
+
+		m_noteLen3ComboBox = new ComboBox2( m_toolBar );
+		m_noteLen3ComboBox->setModel( &m_editor->m_noteLen3Model );
+		m_noteLen3ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
+
+		QLabel * noteLen4_lbl = new QLabel( m_toolBar );
+		noteLen4_lbl->setText( MSG_SUBDIV );
+		QFont nf4( "Arial", QUANTIZE_CAPTION_FONT_SIZE, QFont::Bold);
+		noteLen4_lbl->setFont( nf4 );
+
+		m_noteLen4ComboBox = new ComboBox2( m_toolBar );
+		m_noteLen4ComboBox->setModel( &m_editor->m_noteLen4Model );
+		m_noteLen4ComboBox->setFixedSize( comboBoxWidth2, comboBoxHeight );
+
+
+		zoomAndNotesToolBar->addSeparator();
+		zoomAndNotesToolBar->addWidget( note_len_lbl );
+		zoomAndNotesToolBar->addWidget( m_noteLenComboBox );
+		zoomAndNotesToolBar->addSeparator();
+		zoomAndNotesToolBar->addWidget( noteLen1_lbl );
+		zoomAndNotesToolBar->addWidget( m_noteLen1ComboBox );
+		zoomAndNotesToolBar->addWidget( noteLen2_lbl );
+		zoomAndNotesToolBar->addWidget( m_noteLen2ComboBox );
+		zoomAndNotesToolBar->addWidget( noteLen3_lbl );
+		zoomAndNotesToolBar->addWidget( m_noteLen3ComboBox );
+		zoomAndNotesToolBar->addWidget( noteLen4_lbl );
+		zoomAndNotesToolBar->addWidget( m_noteLen4ComboBox );
+	}
+
 
 	// setup scale-stuff
 	QLabel * scale_lbl = new QLabel( m_toolBar );
 	scale_lbl->setPixmap( embed::getIconPixmap( "scale" ) );
 
-	m_scaleComboBox = new ComboBox( m_toolBar );
+	m_scaleComboBox = new ComboBox2( m_toolBar );
 	m_scaleComboBox->setModel( &m_editor->m_scaleModel );
 	m_scaleComboBox->setFixedSize( 105, 22 );
 
@@ -4225,21 +5058,10 @@ PianoRollWindow::PianoRollWindow() :
 	QLabel * chord_lbl = new QLabel( m_toolBar );
 	chord_lbl->setPixmap( embed::getIconPixmap( "chord" ) );
 
-	m_chordComboBox = new ComboBox( m_toolBar );
+	m_chordComboBox = new ComboBox2( m_toolBar );
 	m_chordComboBox->setModel( &m_editor->m_chordModel );
 	m_chordComboBox->setFixedSize( 105, 22 );
 
-
-	zoomAndNotesToolBar->addWidget( zoom_lbl );
-	zoomAndNotesToolBar->addWidget( m_zoomingComboBox );
-
-	zoomAndNotesToolBar->addSeparator();
-	zoomAndNotesToolBar->addWidget( quantize_lbl );
-	zoomAndNotesToolBar->addWidget( m_quantizeComboBox );
-
-	zoomAndNotesToolBar->addSeparator();
-	zoomAndNotesToolBar->addWidget( note_len_lbl );
-	zoomAndNotesToolBar->addWidget( m_noteLenComboBox );
 
 	zoomAndNotesToolBar->addSeparator();
 	zoomAndNotesToolBar->addWidget( scale_lbl );

@@ -47,6 +47,7 @@ SET(LMMS_SRCS
 	gui/widgets/AutomatableSlider.cpp
 	gui/widgets/CaptionMenu.cpp
 	gui/widgets/ComboBox.cpp
+	gui/widgets/ComboBox2.cpp
 	gui/widgets/ControllerRackView.cpp
 	gui/widgets/ControllerView.cpp
 	gui/widgets/CPULoadWidget.cpp
